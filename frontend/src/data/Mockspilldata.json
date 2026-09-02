@@ -1,0 +1,315 @@
+{
+  "investigation": {
+    "id": "INV-2026-0042",
+    "region": "Arabian Sea",
+    "status": "active",
+    "data_mode": "real_data",
+    "created_at": "2026-08-31T04:00:00Z",
+    "demo_case": true,
+    "demo_case_label": "Historical oil spill reconstruction · Arabian Sea · 31 Aug 2026"
+  },
+  "scenario_manifest": {
+    "sar": {
+      "file_name": "S1A_IW_GRDH_20260831T042800.tif",
+      "source": "Copernicus Sentinel-1",
+      "acquisition_start": "2026-08-31T04:28:00Z",
+      "acquisition_end": "2026-08-31T04:28:34Z",
+      "bounds": [
+        70.9,
+        17.6,
+        73.2,
+        19.9
+      ],
+      "crs": "EPSG:4326"
+    },
+    "ais": {
+      "source": "MarineCadastre / AccessAIS",
+      "time_range": [
+        "2026-08-30T18:00:00Z",
+        "2026-08-31T08:00:00Z"
+      ],
+      "bounds": [
+        70.5,
+        17,
+        73.5,
+        20
+      ]
+    },
+    "wind_current": {
+      "source": "Synthetic (archived pattern)",
+      "time_range": [
+        "2026-08-30T18:00:00Z",
+        "2026-08-31T08:00:00Z"
+      ]
+    },
+    "compatibility": {
+      "status": "compatible",
+      "reasons": []
+    }
+  },
+  "spill_detection": {
+    "status": "detected",
+    "area_km2": 12.4,
+    "area_uncertainty_km2": 0.3,
+    "perimeter_km": 21.7,
+    "centroid": {
+      "lat": 18.234,
+      "lon": 72.452
+    },
+    "orientation_deg": 37,
+    "shape_complexity": 0.72,
+    "detection_confidence": 0.94,
+    "confidence_label": "high",
+    "model": {
+      "name": "SAR Segmentation Network",
+      "version": "unet-r18-v1",
+      "threshold": 0.5,
+      "iou": 0.89,
+      "dice": 0.91
+    },
+    "evidence_factors": [
+      {
+        "label": "SAR Signature",
+        "value": 0.94
+      },
+      {
+        "label": "Spatial Coherence",
+        "value": 0.91
+      },
+      {
+        "label": "Surface Contrast",
+        "value": 0.89
+      }
+    ],
+    "polygon_geojson": null,
+    "estimated_age": {
+      "value": null,
+      "confidence": "low",
+      "note": "Optional, low-confidence estimate based on drift assumptions"
+    }
+  },
+  "origin_reconstruction": {
+    "estimated_origin": {
+      "lat": 18.1,
+      "lon": 71.8
+    },
+    "estimated_window_start": "2026-08-31T05:20:00Z",
+    "estimated_window_end": "2026-08-31T07:10:00Z",
+    "confidence": 0.82,
+    "confidence_label": "medium",
+    "method": "Backward drift hindcast",
+    "environmental_inputs": [
+      "Ocean current",
+      "Wind field",
+      "Time window"
+    ],
+    "uncertainty_corridor_geojson": null,
+    "backward_particles": [
+      {
+        "t_offset_hours": 0,
+        "lat": 18.234,
+        "lon": 72.452
+      },
+      {
+        "t_offset_hours": -6,
+        "lat": 18.19,
+        "lon": 72.1
+      },
+      {
+        "t_offset_hours": -12,
+        "lat": 18.15,
+        "lon": 71.95
+      },
+      {
+        "t_offset_hours": -18,
+        "lat": 18.12,
+        "lon": 71.85
+      },
+      {
+        "t_offset_hours": -24,
+        "lat": 18.1,
+        "lon": 71.8
+      }
+    ]
+  },
+  "ais_summary": {
+    "total_tracks_analyzed": 142,
+    "tracks_in_origin_window": 17,
+    "candidates_ranked": 4,
+    "data_quality": {
+      "ais_completeness": 0.93,
+      "gap_detected": true,
+      "gap_window": [
+        "2026-08-31T06:30:00Z",
+        "2026-08-31T06:50:00Z"
+      ],
+      "gap_note": "AIS gap detected · simulation partially compensates"
+    }
+  },
+  "vessel_candidates": [
+    {
+      "rank": 1,
+      "mmsi": "419003214",
+      "vessel_name": "MV Ocean Star",
+      "vessel_type": "Bulk Carrier",
+      "flag": "IND",
+      "attribution_score": 0.87,
+      "label": "Strongest current candidate",
+      "features": {
+        "spatial_proximity": 0.92,
+        "timing_compatibility": 0.88,
+        "trajectory_match": 0.84,
+        "heading_behavior": 0.86,
+        "drift_match": 0.91,
+        "ais_quality": 0.98
+      },
+      "evidence_timeline": [
+        {
+          "time": "05:42 UTC",
+          "label": "Vessel entered origin corridor"
+        },
+        {
+          "time": "06:10 UTC",
+          "label": "Heading compatible with corridor"
+        },
+        {
+          "time": "06:27 UTC",
+          "label": "AIS position recorded"
+        },
+        {
+          "time": "06:45 UTC",
+          "label": "Estimated spill window",
+          "highlight": true
+        },
+        {
+          "time": "07:10 UTC",
+          "label": "Vessel exited corridor"
+        }
+      ],
+      "track_geojson": null
+    },
+    {
+      "rank": 2,
+      "mmsi": "419117762",
+      "vessel_name": "Sea Falcon",
+      "vessel_type": "Tanker",
+      "flag": "PAN",
+      "attribution_score": 0.71,
+      "features": {
+        "spatial_proximity": 0.78,
+        "timing_compatibility": 0.7,
+        "trajectory_match": 0.65,
+        "heading_behavior": 0.6,
+        "drift_match": 0.68,
+        "ais_quality": 0.95
+      },
+      "evidence_timeline": [],
+      "track_geojson": null
+    },
+    {
+      "rank": 3,
+      "mmsi": "419224481",
+      "vessel_name": "Blue Horizon",
+      "vessel_type": "Container Ship",
+      "flag": "SGP",
+      "attribution_score": 0.59,
+      "features": {
+        "spatial_proximity": 0.6,
+        "timing_compatibility": 0.55,
+        "trajectory_match": 0.5,
+        "heading_behavior": 0.48,
+        "drift_match": 0.52,
+        "ais_quality": 0.9
+      },
+      "evidence_timeline": [],
+      "track_geojson": null
+    },
+    {
+      "rank": 4,
+      "mmsi": "419309915",
+      "vessel_name": "Ocean Trader",
+      "vessel_type": "General Cargo",
+      "flag": "LBR",
+      "attribution_score": 0.43,
+      "features": {
+        "spatial_proximity": 0.4,
+        "timing_compatibility": 0.38,
+        "trajectory_match": 0.35,
+        "heading_behavior": 0.3,
+        "drift_match": 0.33,
+        "ais_quality": 0.85
+      },
+      "evidence_timeline": [],
+      "track_geojson": null
+    }
+  ],
+  "background_ais_tracks": [],
+  "drift_simulation": {
+    "status": "not_verified",
+    "model_label": "Physics-Informed Drift Model",
+    "controls": {
+      "candidate_vessel_mmsi": "419003214",
+      "spill_time": "2026-08-31T06:30:00Z",
+      "initial_location": {
+        "lat": 18.1,
+        "lon": 71.8
+      },
+      "duration_hours": 12,
+      "ocean_current": true,
+      "wind": true
+    },
+    "result": {
+      "predicted_actual_match": 0.87,
+      "centroid_offset_km": 1.8,
+      "shape_similarity": 0.84,
+      "iou": 0.81,
+      "verdict": "high_compatibility",
+      "verdict_label": "HIGH COMPATIBILITY",
+      "interpretation": "The simulated drift footprint is consistent with the observed SAR spill within current uncertainty bounds."
+    },
+    "simulated_footprint_geojson": null
+  },
+  "investigation_workflow": [
+    {
+      "stage": "SAR Detection",
+      "status": "complete",
+      "timestamp": "14:28 UTC",
+      "confidence": 0.94
+    },
+    {
+      "stage": "Origin Hindcast",
+      "status": "complete",
+      "timestamp": "14:31 UTC",
+      "confidence": 0.82
+    },
+    {
+      "stage": "AIS Filter",
+      "status": "complete",
+      "timestamp": "14:32 UTC",
+      "confidence": 0.97,
+      "note": "17 vessels"
+    },
+    {
+      "stage": "Candidate Ranking",
+      "status": "complete",
+      "timestamp": "14:33 UTC",
+      "confidence": 0.87
+    },
+    {
+      "stage": "Drift Verification",
+      "status": "pending",
+      "timestamp": null,
+      "confidence": null
+    },
+    {
+      "stage": "Final Attribution",
+      "status": "pending",
+      "timestamp": null,
+      "confidence": null
+    }
+  ],
+  "disclaimers": {
+    "attribution": "Candidate rankings support investigation and do not constitute legal attribution.",
+    "detection": "Confidence reflects the strength of the observed SAR surface signature. Detection is not source attribution."
+  }
+}
