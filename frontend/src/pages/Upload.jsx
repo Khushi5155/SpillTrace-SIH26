@@ -1,10 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { uploadSpill, detectSpill } from "../services/api";
+
 function Upload() {
   const navigate = useNavigate();
 
   const [selectedFile, setSelectedFile] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const demoInvestigationId = "INV-2026-0042";
 
@@ -13,20 +17,57 @@ function Upload() {
 
     if (file) {
       setSelectedFile(file);
+      setError("");
     }
   };
 
+  // ----------------------------------------------------------
+  // Demo Case
+  // ----------------------------------------------------------
+
   const handleDemoCase = () => {
+    setError("");
     navigate(`/investigation/${demoInvestigationId}`);
   };
 
-  const handleContinue = () => {
-    if (!selectedFile) return;
+  // ----------------------------------------------------------
+  // Real SAR Upload → Detection
+  // ----------------------------------------------------------
 
-    // Day 1:
-    // Uploaded file is only selected locally.
-    // Real SAR processing/API integration will be added in Day 3/4.
-    navigate(`/investigation/${demoInvestigationId}`);
+  const handleContinue = async () => {
+    if (!selectedFile || loading) return;
+
+    try {
+      setLoading(true);
+      setError("");
+
+      // Step 1: Upload SAR file
+      const uploadResult = await uploadSpill(selectedFile);
+
+      console.log("SAR upload successful:", uploadResult);
+
+      // Step 2: Run spill detection
+      const detectionResult = await detectSpill(
+        uploadResult.spill_id
+      );
+
+      console.log("Spill detection successful:", detectionResult);
+
+      // Step 3: Open investigation
+      navigate(`/investigation/${uploadResult.spill_id}`);
+    } catch (err) {
+      console.error("SAR processing failed:", err);
+
+      const message =
+        err.response?.data?.detail ||
+        err.response?.data?.message ||
+        err.message ||
+        "Unable to process SAR scene.";
+
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -45,7 +86,11 @@ function Upload() {
       </div>
 
       <div className="upload-grid">
-        {/* Upload Card */}
+
+        {/* ==================================================
+            Upload Card
+        ================================================== */}
+
         <div className="upload-card">
           <div className="upload-icon">
             ↑
@@ -58,33 +103,53 @@ function Upload() {
           </p>
 
           <label className="file-picker">
-            <span>Choose SAR File</span>
+            <span>
+              {selectedFile ? "Change SAR File" : "Choose SAR File"}
+            </span>
 
             <input
               type="file"
               accept=".tif,.tiff,.zip"
               onChange={handleFileChange}
+              disabled={loading}
             />
           </label>
 
           {selectedFile && (
             <div className="selected-file">
               <div>
-                <span className="file-label">SELECTED FILE</span>
+                <span className="file-label">
+                  SELECTED FILE
+                </span>
 
-                <strong>{selectedFile.name}</strong>
+                <strong>
+                  {selectedFile.name}
+                </strong>
               </div>
 
-              <span className="file-status">READY</span>
+              <span className="file-status">
+                READY
+              </span>
+            </div>
+          )}
+
+          {/* Error */}
+          {error && (
+            <div className="upload-error">
+              <strong>Processing failed</strong>
+
+              <p>{error}</p>
             </div>
           )}
 
           <button
             className="primary-button"
             onClick={handleContinue}
-            disabled={!selectedFile}
+            disabled={!selectedFile || loading}
           >
-            Continue Investigation
+            {loading
+              ? "Processing SAR Scene..."
+              : "Continue Investigation"}
           </button>
 
           <p className="upload-note">
@@ -92,7 +157,11 @@ function Upload() {
           </p>
         </div>
 
-        {/* Demo Case Card */}
+
+        {/* ==================================================
+            Demo Case Card
+        ================================================== */}
+
         <div className="demo-card">
           <div className="demo-header">
             <span className="status-dot"></span>
@@ -100,7 +169,9 @@ function Upload() {
             <span>DEMO SCENARIO AVAILABLE</span>
           </div>
 
-          <h2>Historical Oil Spill Reconstruction</h2>
+          <h2>
+            Historical Oil Spill Reconstruction
+          </h2>
 
           <p className="demo-description">
             Load the prepared Arabian Sea scenario to explore the complete
@@ -108,53 +179,80 @@ function Upload() {
           </p>
 
           <div className="demo-details">
+
             <div className="detail-row">
               <span>Investigation</span>
-              <strong>{demoInvestigationId}</strong>
+
+              <strong>
+                {demoInvestigationId}
+              </strong>
             </div>
 
             <div className="detail-row">
               <span>Region</span>
-              <strong>Arabian Sea</strong>
+
+              <strong>
+                Arabian Sea
+              </strong>
             </div>
 
             <div className="detail-row">
               <span>SAR Source</span>
-              <strong>Copernicus Sentinel-1</strong>
+
+              <strong>
+                Copernicus Sentinel-1
+              </strong>
             </div>
 
             <div className="detail-row">
               <span>Scenario Date</span>
-              <strong>31 Aug 2026</strong>
+
+              <strong>
+                31 Aug 2026
+              </strong>
             </div>
+
           </div>
 
           <button
             className="secondary-button"
             onClick={handleDemoCase}
+            disabled={loading}
           >
             Load Demo Investigation →
           </button>
         </div>
       </div>
 
-      {/* Workflow */}
+
+      {/* ==================================================
+          Workflow
+      ================================================== */}
+
       <div className="workflow-section">
         <div className="workflow-header">
           <div>
-            <p className="eyebrow">INVESTIGATION WORKFLOW</p>
+            <p className="eyebrow">
+              INVESTIGATION WORKFLOW
+            </p>
 
-            <h2>From SAR Scene to Source Attribution</h2>
+            <h2>
+              From SAR Scene to Source Attribution
+            </h2>
           </div>
         </div>
 
         <div className="workflow-steps">
+
           <div className="workflow-step active">
             <span>01</span>
 
             <div>
               <strong>SAR Detection</strong>
-              <p>Identify potential oil slick signature.</p>
+
+              <p>
+                Identify potential oil slick signature.
+              </p>
             </div>
           </div>
 
@@ -165,7 +263,10 @@ function Upload() {
 
             <div>
               <strong>Origin Hindcast</strong>
-              <p>Estimate the likely spill origin.</p>
+
+              <p>
+                Estimate the likely spill origin.
+              </p>
             </div>
           </div>
 
@@ -176,7 +277,10 @@ function Upload() {
 
             <div>
               <strong>AIS Analysis</strong>
-              <p>Filter vessels in the origin window.</p>
+
+              <p>
+                Filter vessels in the origin window.
+              </p>
             </div>
           </div>
 
@@ -187,9 +291,13 @@ function Upload() {
 
             <div>
               <strong>Candidate Ranking</strong>
-              <p>Rank candidates using explainable evidence.</p>
+
+              <p>
+                Rank candidates using explainable evidence.
+              </p>
             </div>
           </div>
+
         </div>
       </div>
     </section>

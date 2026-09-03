@@ -1,13 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import {
-  CircleMarker,
   MapContainer,
+  TileLayer,
+  CircleMarker,
   Polygon,
   Polyline,
   Popup,
-  TileLayer,
+  Rectangle,
   useMap,
 } from "react-leaflet";
 
@@ -16,16 +17,37 @@ import "leaflet/dist/leaflet.css";
 import spillData from "../data/mockSpillData.json";
 
 /* =========================================================
-   MAP RESIZE
-   ========================================================= */
+   HELPERS
+========================================================= */
+
+const safeNumber = (value, fallback = 0) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+};
+
+const clamp = (value, min = 0, max = 1) =>
+  Math.min(Math.max(safeNumber(value), min), max);
+
+const formatPercent = (value) =>
+  `${Math.round(clamp(value) * 100)}%`;
+
+const formatArea = (value) =>
+  `${safeNumber(value).toFixed(1)} km²`;
+
+const formatCoordinate = (value) =>
+  safeNumber(value).toFixed(3);
+
+/* =========================================================
+   MAP RESIZE HANDLER
+========================================================= */
 
 function MapResizeHandler() {
   const map = useMap();
 
-  useMemo(() => {
+  useEffect(() => {
     const timer = setTimeout(() => {
       map.invalidateSize();
-    }, 100);
+    }, 150);
 
     return () => clearTimeout(timer);
   }, [map]);
@@ -34,67 +56,62 @@ function MapResizeHandler() {
 }
 
 /* =========================================================
-   SAFE NUMBER
-   ========================================================= */
+   FALLBACK DEMO SPILL POLYGON
+   The provided JSON currently has polygon_geojson: null.
+   This polygon is ONLY for the Day-2 frontend demo.
+========================================================= */
 
-function safeNumber(value, fallback = 0) {
-  const number = Number(value);
-
-  return Number.isFinite(number) ? number : fallback;
-}
+const DEMO_SPILL_POLYGON = [
+  [18.185, 72.400],
+  [18.205, 72.430],
+  [18.225, 72.445],
+  [18.250, 72.455],
+  [18.270, 72.480],
+  [18.255, 72.505],
+  [18.230, 72.520],
+  [18.205, 72.505],
+  [18.180, 72.475],
+  [18.170, 72.440],
+  [18.185, 72.400],
+];
 
 /* =========================================================
-   INVESTIGATION
-   ========================================================= */
+   MAIN COMPONENT
+========================================================= */
 
-function Investigation() {
+export default function Investigation() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  /* -------------------------------------------------------
+  const [selectedCandidate, setSelectedCandidate] = useState(0);
+
+  const [selectedTimeIndex, setSelectedTimeIndex] = useState(0);
+
+  const [layers, setLayers] = useState({
+    spill: true,
+    origin: true,
+    drift: true,
+    scene: false,
+  });
+
+  /* =======================================================
      DATA
-  ------------------------------------------------------- */
+  ======================================================= */
 
   const investigation = spillData?.investigation ?? {};
-  const scenario = spillData?.scenario_manifest ?? {};
-  const sar = scenario?.sar ?? {};
-
+  const scenario = spillData?.scenario_manifest;
   const spill = spillData?.spill_detection ?? {};
   const origin = spillData?.origin_reconstruction ?? {};
   const ais = spillData?.ais_summary ?? {};
+  const candidates = spillData?.vessel_candidates ?? [];
+  
 
-  const candidates = Array.isArray(spillData?.vessel_candidates)
-    ? spillData.vessel_candidates
-    : [];
-
-  const backwardParticles = Array.isArray(
-    origin?.backward_particles
-  )
-    ? origin.backward_particles
-    : [];
-
-  /* -------------------------------------------------------
-     STATE
-  ------------------------------------------------------- */
-
-  const [timelineHour, setTimelineHour] = useState(0);
-
-  const [selectedCandidate, setSelectedCandidate] = useState(
-    candidates.length > 0 ? candidates[0] : null
-  );
-
-  /* -------------------------------------------------------
-     SPILL CENTROID
-  ------------------------------------------------------- */
+  /* =======================================================
+     COORDINATES
+  ======================================================= */
 
   const spillLat = safeNumber(spill?.centroid?.lat, 18.234);
   const spillLon = safeNumber(spill?.centroid?.lon, 72.452);
-
-  const mapCenter = [spillLat, spillLon];
-
-  /* -------------------------------------------------------
-     ORIGIN
-  ------------------------------------------------------- */
 
   const originLat = safeNumber(
     origin?.estimated_origin?.lat,
@@ -106,11 +123,41 @@ function Investigation() {
     71.8
   );
 
-  const estimatedOrigin = [originLat, originLon];
+  /* =======================================================
+     MAP CENTER
+  ======================================================= */
 
-  /* -------------------------------------------------------
-     BACKWARD DRIFT PATH
-  ------------------------------------------------------- */
+  const mapCenter = [
+  (spillLat + originLat) / 2,
+  (spillLon + originLon) / 2,
+];
+
+  const sar = scenario?.sar ?? {};
+
+
+  /* =======================================================
+     SCENE BOUNDS
+  ======================================================= */
+
+  const sceneBounds = useMemo(() => {
+  if (!sar.bounds || sar.bounds.length !== 4) {
+    return null;
+  }
+
+  const [minLon, minLat, maxLon, maxLat] = sar.bounds;
+
+  return [
+    [minLat, minLon],
+    [maxLat, maxLon],
+  ];
+}, [sar.bounds]);
+
+  /* =======================================================
+     BACKWARD DRIFT PARTICLES
+  ======================================================= */
+
+  
+  
 
   const driftPath = backwardParticles
     .filter(
@@ -119,262 +166,117 @@ function Investigation() {
         Number.isFinite(Number(point?.lon))
     )
     .map((point) => [
-      Number(point.lat),
-      Number(point.lon),
+      safeNumber(point.lat),
+      safeNumber(point.lon),
     ]);
 
-  /*
-    JSON contains:
-      0h
-      -6h
-      -12h
-      -18h
-      -24h
+  /* =======================================================
+     CURRENT TIMELINE POINT
+  ======================================================= */
 
-    Timeline slider uses:
-      0
-      -6
-      -12
-      -18
-      -24
-  */
+  const selectedDriftPoint =
+    backwardParticles[selectedTimeIndex] ??
+    backwardParticles[backwardParticles.length - 1] ??
+    null;
 
-  const availableTimelineHours = backwardParticles
-    .map((point) => Number(point?.t_offset_hours))
-    .filter(Number.isFinite);
+  const selectedDriftLat = selectedDriftPoint
+    ? safeNumber(selectedDriftPoint.lat, originLat)
+    : originLat;
 
-  const selectedParticle =
-    backwardParticles.find(
-      (point) =>
-        Number(point?.t_offset_hours) === timelineHour
-    ) ?? null;
+  const selectedDriftLon = selectedDriftPoint
+    ? safeNumber(selectedDriftPoint.lon, originLon)
+    : originLon;
 
-  const selectedParticlePosition = selectedParticle
-    ? [
-        safeNumber(selectedParticle.lat, spillLat),
-        safeNumber(selectedParticle.lon, spillLon),
-      ]
-    : estimatedOrigin;
+  /* =======================================================
+     VISIBLE DRIFT PATH
+  ======================================================= */
+  const backwardParticles = origin?.backward_particles ?? [];
 
-  /* -------------------------------------------------------
-     TIMELINE PATH
-  ------------------------------------------------------- */
+const visibleDriftPath = backwardParticles
+  .slice(selectedTimeIndex)
+  .map((point) => [
+    safeNumber(point.lat),
+    safeNumber(point.lon),
+  ]);
 
-  const visibleDriftPath = useMemo(() => {
-    if (backwardParticles.length === 0) {
-      return [];
-    }
+  /* =======================================================
+     SELECTED CANDIDATE
+  ======================================================= */
 
-    const validPoints = backwardParticles
-      .filter(
-        (point) =>
-          Number.isFinite(Number(point?.lat)) &&
-          Number.isFinite(Number(point?.lon)) &&
-          Number.isFinite(Number(point?.t_offset_hours))
-      )
-      .map((point) => ({
-        time: Number(point.t_offset_hours),
-        position: [
-          Number(point.lat),
-          Number(point.lon),
-        ],
-      }));
+  const currentCandidate =
+    candidates[selectedCandidate] ?? null;
 
-    /*
-      Sort from oldest -> newest:
-      -24 -> -18 -> -12 -> -6 -> 0
-    */
+  /* =======================================================
+     MAP LAYER TOGGLE
+  ======================================================= */
 
-    validPoints.sort((a, b) => a.time - b.time);
+  const toggleLayer = (layerName) => {
+    setLayers((previous) => ({
+      ...previous,
+      [layerName]: !previous[layerName],
+    }));
+  };
 
-    const selectedTime = timelineHour;
+  /* =======================================================
+     TIMELINE
+  ======================================================= */
 
-    return validPoints
-      .filter((point) => point.time >= selectedTime)
-      .map((point) => point.position);
-  }, [backwardParticles, timelineHour]);
+  const handleTimelineChange = (event) => {
+    setSelectedTimeIndex(Number(event.target.value));
+  };
 
-  /* -------------------------------------------------------
-     SPILL POLYGON
-     -------------------------------------------------------
+  /* =======================================================
+     SAFE SPILL POLYGON
+  ======================================================= */
 
-     The mock JSON currently has:
-       polygon_geojson: null
+  const spillPolygon =
+    Array.isArray(spill?.polygon_geojson) &&
+    spill.polygon_geojson.length > 0
+      ? spill.polygon_geojson
+      : DEMO_SPILL_POLYGON;
 
-     Therefore a demo polygon is used only for visualization.
-  */
-
-  const spillPolygon = [
-    [18.27, 72.39],
-    [18.31, 72.44],
-    [18.29, 72.51],
-    [18.23, 72.54],
-    [18.18, 72.49],
-    [18.17, 72.41],
-    [18.22, 72.37],
-  ];
-
-  /* -------------------------------------------------------
-     SAR BOUNDS
-     -------------------------------------------------------
-
-     JSON:
-       bounds: [70.9, 17.6, 73.2, 19.9]
-
-     Order:
-       [minLon, minLat, maxLon, maxLat]
-  */
-
-  const sarBounds = Array.isArray(sar?.bounds)
-    ? sar.bounds
-    : [70.9, 17.6, 73.2, 19.9];
-
-  const minLon = safeNumber(sarBounds[0], 70.9);
-  const minLat = safeNumber(sarBounds[1], 17.6);
-  const maxLon = safeNumber(sarBounds[2], 73.2);
-  const maxLat = safeNumber(sarBounds[3], 19.9);
-
-  const sceneBounds = [
-    [minLat, minLon],
-    [minLat, maxLon],
-    [maxLat, maxLon],
-    [maxLat, minLon],
-  ];
-
-  /* -------------------------------------------------------
-     SCORE
-  ------------------------------------------------------- */
-
-  const selectedScore = selectedCandidate
-    ? Math.round(
-        safeNumber(
-          selectedCandidate?.attribution_score,
-          0
-        ) * 100
-      )
-    : 0;
-
-  const detectionConfidence = Math.round(
-    safeNumber(spill?.detection_confidence, 0) * 100
-  );
-
-  const originConfidence = Math.round(
-    safeNumber(origin?.confidence, 0) * 100
-  );
-
-  const aisCompleteness = Math.round(
-    safeNumber(
-      ais?.data_quality?.ais_completeness,
-      0
-    ) * 100
-  );
-
-  /* -------------------------------------------------------
-     TIMELINE LABEL
-  ------------------------------------------------------- */
-
-  const timelineLabel =
-    timelineHour === 0
-      ? "CURRENT SPILL"
-      : `${Math.abs(timelineHour)}h BACKWARD`;
-
-  /* =========================================================
+  /* =======================================================
      RENDER
-     ========================================================= */
+  ======================================================= */
 
   return (
-    <section className="investigation-page">
-
+    <div className="investigation-page">
       {/* =====================================================
-          HEADER
+          PAGE HEADER
       ===================================================== */}
 
       <div className="investigation-header">
-
         <div>
-          <p className="eyebrow">
-            SPILLTRACE / INVESTIGATION
-          </p>
-
-          <div className="investigation-title-row">
-
-            <h1>
-              Marine Spill Investigation
-            </h1>
-
-            <span className="investigation-status">
-              {String(
-                investigation?.status ?? "active"
-              ).toUpperCase()}
-            </span>
-
+          <div className="eyebrow">
+            ACTIVE INVESTIGATION
           </div>
 
-          <p className="page-description">
-            SAR-based oil-spill detection, origin
-            reconstruction and vessel candidate analysis.
+          <h1>
+            {investigation?.id || id || "Investigation"}
+          </h1>
+
+          <p>
+            {investigation?.region || "Arabian Sea"}
+            {" · "}
+            {investigation?.demo_case_label ||
+              "Marine oil-spill reconstruction"}
           </p>
         </div>
 
-        <button
-          className="back-button"
-          onClick={() => navigate("/")}
-        >
-          ← Dashboard
-        </button>
+        <div className="header-actions">
+          <div className="status-badge">
+            <span className="status-dot" />
+            {investigation?.status?.toUpperCase() ||
+              "ACTIVE"}
+          </div>
 
-      </div>
-
-      {/* =====================================================
-          INVESTIGATION META
-      ===================================================== */}
-
-      <div className="investigation-meta">
-
-        <div className="meta-item">
-          <span>
-            INVESTIGATION ID
-          </span>
-
-          <strong>
-            {id || investigation?.id || "UNKNOWN"}
-          </strong>
+          <button
+            className="secondary-button"
+            onClick={() => navigate("/")}
+          >
+            ← Dashboard
+          </button>
         </div>
-
-        <div className="meta-item">
-          <span>
-            REGION
-          </span>
-
-          <strong>
-            {investigation?.region || "Arabian Sea"}
-          </strong>
-        </div>
-
-        <div className="meta-item">
-          <span>
-            SAR SOURCE
-          </span>
-
-          <strong>
-            {sar?.source || "Sentinel-1"}
-          </strong>
-        </div>
-
-        <div className="meta-item">
-          <span>
-            DATA MODE
-          </span>
-
-          <strong>
-            {String(
-              investigation?.data_mode ?? "real_data"
-            )
-              .replaceAll("_", " ")
-              .toUpperCase()}
-          </strong>
-        </div>
-
       </div>
 
       {/* =====================================================
@@ -387,758 +289,839 @@ function Investigation() {
             MAP
         =================================================== */}
 
-        <div className="map-container">
+        <section className="map-section">
 
           <MapContainer
             center={mapCenter}
-            zoom={8}
-            minZoom={7}
-            maxZoom={13}
-            scrollWheelZoom={true}
+            zoom={7}
+            scrollWheelZoom
             className="investigation-map"
           >
-
-            {/* BASE MAP */}
+            <MapResizeHandler />
 
             <TileLayer
-              attribution="© OpenStreetMap contributors"
+              attribution='&copy; OpenStreetMap contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            <MapResizeHandler />
+            {/* -----------------------------------------------
+                SAR SCENE BOUNDS
+            ------------------------------------------------ */}
 
-            {/* =================================================
-                SAR SCENE BOUNDARY
-            ================================================= */}
-
-            <Polygon
-              positions={sceneBounds}
-              pathOptions={{
-                color: "#38bdf8",
-                weight: 1,
-                opacity: 0.55,
-                fillOpacity: 0.035,
-              }}
-            />
-
-            {/* =================================================
-                BACKWARD DRIFT
-            ================================================= */}
-
-            {visibleDriftPath.length > 1 && (
-              <Polyline
-                positions={visibleDriftPath}
+            {layers.scene && (
+              <Rectangle
+                bounds={sceneBounds}
                 pathOptions={{
-                  color: "#facc15",
-                  weight: 3,
-                  opacity: 0.85,
-                  dashArray: "8 7",
+                  color: "#64748b",
+                  weight: 1,
+                  dashArray: "6 6",
+                  fillOpacity: 0.03,
                 }}
               />
             )}
 
-            {/* =================================================
-                CURRENT / SELECTED DRIFT POINT
-            ================================================= */}
+            {/* -----------------------------------------------
+                SPILL
+            ------------------------------------------------ */}
 
-            <CircleMarker
-              center={selectedParticlePosition}
-              radius={6}
-              pathOptions={{
-                color: "#facc15",
-                fillColor: "#facc15",
-                fillOpacity: 0.9,
-                weight: 2,
-              }}
-            >
-              <Popup>
-                <strong>
-                  Backward Drift Position
-                </strong>
-
-                <br />
-
-                Time:
-                {" "}
-                {timelineHour === 0
-                  ? "Current"
-                  : `${timelineHour}h`}
-
-                <br />
-
-                Lat:
-                {" "}
-                {selectedParticlePosition[0].toFixed(3)}
-
-                <br />
-
-                Lon:
-                {" "}
-                {selectedParticlePosition[1].toFixed(3)}
-              </Popup>
-            </CircleMarker>
-
-            {/* =================================================
-                ESTIMATED ORIGIN
-            ================================================= */}
-
-            <CircleMarker
-              center={estimatedOrigin}
-              radius={10}
-              pathOptions={{
-                color: "#facc15",
-                fillColor: "#facc15",
-                fillOpacity: 0.95,
-                weight: 3,
-              }}
-            >
-              <Popup>
-
-                <strong>
-                  Estimated Spill Origin
-                </strong>
-
-                <br />
-
-                Confidence:
-                {" "}
-                {originConfidence}%
-
-                <br />
-
-                Lat:
-                {" "}
-                {originLat.toFixed(3)}
-
-                <br />
-
-                Lon:
-                {" "}
-                {originLon.toFixed(3)}
-
-              </Popup>
-            </CircleMarker>
-
-            {/* =================================================
-                DETECTED SPILL
-            ================================================= */}
-
-            <Polygon
-              positions={spillPolygon}
-              pathOptions={{
-                color: "#ef4444",
-                fillColor: "#ef4444",
-                fillOpacity: 0.38,
-                weight: 2,
-              }}
-            >
-              <Popup>
-
-                <strong>
-                  Detected Spill
-                </strong>
-
-                <br />
-
-                Area:
-                {" "}
-                {spill?.area_km2 ?? 0} km²
-
-                <br />
-
-                Confidence:
-                {" "}
-                {detectionConfidence}%
-
-              </Popup>
-            </Polygon>
-
-            {/* =================================================
-                SELECTED VESSEL
-            ================================================= */}
-
-            {selectedCandidate && (
-              <CircleMarker
-                center={[
-                  originLat,
-                  originLon,
-                ]}
-                radius={7}
+            {layers.spill && spillPolygon.length > 0 && (
+              <Polygon
+                positions={spillPolygon}
                 pathOptions={{
-                  color: "#ffffff",
-                  fillColor: "#ffffff",
-                  fillOpacity: 0.95,
+                  color: "#ef4444",
                   weight: 2,
+                  fillColor: "#ef4444",
+                  fillOpacity: 0.32,
                 }}
               >
                 <Popup>
-
-                  <strong>
-                    {selectedCandidate?.vessel_name ??
-                      "Unknown Vessel"}
-                  </strong>
-
+                  <strong>Detected Oil Spill</strong>
                   <br />
-
-                  MMSI:
-                  {" "}
-                  {selectedCandidate?.mmsi ??
-                    "Unknown"}
-
+                  Area: {formatArea(spill?.area_km2)}
                   <br />
+                  Confidence:{" "}
+                  {formatPercent(
+                    spill?.detection_confidence
+                  )}
+                </Popup>
+              </Polygon>
+            )}
 
-                  Candidate Score:
-                  {" "}
-                  {selectedScore}%
+            {/* -----------------------------------------------
+                SPILL CENTROID
+            ------------------------------------------------ */}
 
+            {layers.spill && (
+              <CircleMarker
+                center={[spillLat, spillLon]}
+                radius={7}
+                pathOptions={{
+                  color: "#ffffff",
+                  weight: 2,
+                  fillColor: "#ef4444",
+                  fillOpacity: 1,
+                }}
+              >
+                <Popup>
+                  <strong>Detected Spill Centroid</strong>
+                  <br />
+                  Lat: {formatCoordinate(spillLat)}
+                  <br />
+                  Lon: {formatCoordinate(spillLon)}
                 </Popup>
               </CircleMarker>
             )}
 
+            {/* -----------------------------------------------
+                ORIGIN
+            ------------------------------------------------ */}
+
+            {layers.origin && (
+              <CircleMarker
+                center={[originLat, originLon]}
+                radius={8}
+                pathOptions={{
+                  color: "#ffffff",
+                  weight: 2,
+                  fillColor: "#facc15",
+                  fillOpacity: 1,
+                }}
+              >
+                <Popup>
+                  <strong>Estimated Spill Origin</strong>
+                  <br />
+                  Lat: {formatCoordinate(originLat)}
+                  <br />
+                  Lon: {formatCoordinate(originLon)}
+                  <br />
+                  Confidence:{" "}
+                  {formatPercent(origin?.confidence)}
+                </Popup>
+              </CircleMarker>
+            )}
+
+            {/* -----------------------------------------------
+                FULL BACKWARD DRIFT PATH
+            ------------------------------------------------ */}
+
+            {layers.drift && driftPath.length > 1 && (
+              <Polyline
+                positions={driftPath}
+                pathOptions={{
+                  color: "#38bdf8",
+                  weight: 3,
+                  opacity: 0.45,
+                  dashArray: "7 8",
+                }}
+              />
+            )}
+
+            {/* -----------------------------------------------
+                ACTIVE TIMELINE PATH
+            ------------------------------------------------ */}
+
+            {layers.drift &&
+              visibleDriftPath.length > 1 && (
+                <Polyline
+                  positions={visibleDriftPath}
+                  pathOptions={{
+                    color: "#22d3ee",
+                    weight: 4,
+                    opacity: 0.95,
+                  }}
+                />
+              )}
+
+            {/* -----------------------------------------------
+                SELECTED DRIFT PARTICLE
+            ------------------------------------------------ */}
+
+            {layers.drift && selectedDriftPoint && (
+              <CircleMarker
+                center={[
+                  selectedDriftLat,
+                  selectedDriftLon,
+                ]}
+                radius={6}
+                pathOptions={{
+                  color: "#ffffff",
+                  weight: 2,
+                  fillColor: "#22d3ee",
+                  fillOpacity: 1,
+                }}
+              >
+                <Popup>
+                  <strong>Backward Drift Position</strong>
+                  <br />
+                  T ={" "}
+                  {safeNumber(
+                    selectedDriftPoint.t_offset_hours
+                  )}{" "}
+                  hours
+                  <br />
+                  Lat:{" "}
+                  {formatCoordinate(selectedDriftLat)}
+                  <br />
+                  Lon:{" "}
+                  {formatCoordinate(selectedDriftLon)}
+                </Popup>
+              </CircleMarker>
+            )}
           </MapContainer>
 
           {/* =================================================
-              MAP TITLE
-          ================================================= */}
-
-          <div className="map-overlay-title">
-
-            <span className="map-live-dot"></span>
-
-            <div>
-
-              <strong>
-                {investigation?.region ||
-                  "ARABIAN SEA"}
-              </strong>
-
-              <span>
-                {sar?.source ||
-                  "Copernicus Sentinel-1"}
-                {" · "}
-                31 Aug 2026
-              </span>
-
-            </div>
-
-          </div>
-
-          {/* =================================================
-              MAP LEGEND
+              MAP OVERLAY — LEGEND
           ================================================= */}
 
           <div className="map-legend">
-
             <div className="legend-title">
-              MAP LEGEND
+              MAP LAYERS
             </div>
 
-            <div className="legend-item">
+            <button
+              className={`legend-row ${
+                layers.spill ? "active" : ""
+              }`}
+              onClick={() => toggleLayer("spill")}
+            >
+              <span className="legend-marker spill-marker" />
+              <span>Detected Spill</span>
+            </button>
 
-              <span
-                className="legend-marker"
-                style={{
-                  background: "#ef4444",
-                }}
-              />
+            <button
+              className={`legend-row ${
+                layers.origin ? "active" : ""
+              }`}
+              onClick={() => toggleLayer("origin")}
+            >
+              <span className="legend-marker origin-marker" />
+              <span>Estimated Origin</span>
+            </button>
 
-              Detected Spill
+            <button
+              className={`legend-row ${
+                layers.drift ? "active" : ""
+              }`}
+              onClick={() => toggleLayer("drift")}
+            >
+              <span className="legend-marker drift-marker" />
+              <span>Backward Drift</span>
+            </button>
 
-            </div>
-
-            <div className="legend-item">
-
-              <span
-                className="legend-marker"
-                style={{
-                  background: "#facc15",
-                }}
-              />
-
-              Estimated Origin
-
-            </div>
-
-            <div className="legend-item">
-
-              <span
-                className="legend-line"
-                style={{
-                  borderColor: "#facc15",
-                }}
-              />
-
-              Backward Drift
-
-            </div>
-
-            <div className="legend-item">
-
-              <span
-                className="legend-marker"
-                style={{
-                  background: "#ffffff",
-                }}
-              />
-
-              AIS Candidate
-
-            </div>
-
+            <button
+              className={`legend-row ${
+                layers.scene ? "active" : ""
+              }`}
+              onClick={() => toggleLayer("scene")}
+            >
+              <span className="legend-marker scene-marker" />
+              <span>SAR Scene Bounds</span>
+            </button>
           </div>
 
-        </div>
+          {/* =================================================
+              MAP STATUS
+          ================================================= */}
+
+          <div className="map-status">
+            <span className="map-status-dot" />
+            <span>
+              SAR + Ocean Dynamics + AIS
+            </span>
+          </div>
+        </section>
 
         {/* ===================================================
-            EVIDENCE PANEL
+            RIGHT SIDEBAR
         =================================================== */}
 
-        <aside className="evidence-panel">
+        <aside className="investigation-sidebar">
 
           {/* =================================================
-              SAR DETECTION
+              DETECTION SUMMARY
           ================================================= */}
 
-          <div className="evidence-card">
+          <section className="evidence-panel">
 
-            <div className="evidence-card-header">
-
+            <div className="panel-header">
               <div>
+                <div className="panel-kicker">
+                  01 · SAR DETECTION
+                </div>
 
-                <span className="evidence-number">
-                  01
-                </span>
-
-                <h3>
-                  SAR Detection
-                </h3>
-
+                <h2>Spill Characterization</h2>
               </div>
 
-              <span className="complete-status">
-                COMPLETE
+              <span className="confidence-badge high">
+                {spill?.confidence_label ||
+                  "HIGH"}
               </span>
-
             </div>
 
-            <div className="evidence-value">
+            <div className="stats-grid">
 
-              {detectionConfidence}%
-
-              <span>
-                {" "}
-                confidence
-              </span>
-
-            </div>
-
-            <div className="metric-grid">
-
-              <div>
-
-                <span>
-                  AREA
-                </span>
-
+              <div className="stat-box">
+                <span>AREA</span>
                 <strong>
-                  {spill?.area_km2 ?? 0} km²
+                  {formatArea(spill?.area_km2)}
                 </strong>
-
               </div>
 
-              <div>
-
-                <span>
-                  PERIMETER
-                </span>
-
+              <div className="stat-box">
+                <span>PERIMETER</span>
                 <strong>
-                  {spill?.perimeter_km ?? 0} km
+                  {safeNumber(
+                    spill?.perimeter_km
+                  ).toFixed(1)}{" "}
+                  km
                 </strong>
-
               </div>
 
+              <div className="stat-box">
+                <span>CONFIDENCE</span>
+                <strong>
+                  {formatPercent(
+                    spill?.detection_confidence
+                  )}
+                </strong>
+              </div>
+
+              <div className="stat-box">
+                <span>ORIENTATION</span>
+                <strong>
+                  {safeNumber(
+                    spill?.orientation_deg
+                  )}°
+                </strong>
+              </div>
             </div>
 
-          </div>
+            <div className="evidence-factors">
+              <div className="subheading">
+                Detection Evidence
+              </div>
+
+              {Array.isArray(
+                spill?.evidence_factors
+              ) &&
+                spill.evidence_factors.map(
+                  (factor) => (
+                    <div
+                      className="factor-row"
+                      key={factor.label}
+                    >
+                      <span>{factor.label}</span>
+
+                      <div className="factor-value">
+                        <div className="factor-bar">
+                          <div
+                            className="factor-fill"
+                            style={{
+                              width: `${clamp(
+                                factor.value
+                              ) * 100}%`,
+                            }}
+                          />
+                        </div>
+
+                        <strong>
+                          {formatPercent(
+                            factor.value
+                          )}
+                        </strong>
+                      </div>
+                    </div>
+                  )
+                )}
+            </div>
+          </section>
 
           {/* =================================================
-              ORIGIN
+              ORIGIN RECONSTRUCTION
           ================================================= */}
 
-          <div className="evidence-card">
+          <section className="evidence-panel">
 
-            <div className="evidence-card-header">
-
+            <div className="panel-header">
               <div>
+                <div className="panel-kicker">
+                  02 · ORIGIN HINDCAST
+                </div>
 
-                <span className="evidence-number">
-                  02
-                </span>
-
-                <h3>
-                  Origin Hindcast
-                </h3>
-
+                <h2>Estimated Origin</h2>
               </div>
 
-              <span className="medium-status">
-                {String(
-                  origin?.confidence_label ?? "MEDIUM"
-                ).toUpperCase()}
+              <span className="confidence-badge medium">
+                {origin?.confidence_label ||
+                  "MEDIUM"}
               </span>
-
             </div>
 
-            <div className="evidence-value">
+            <div className="origin-coordinates">
+              <div>
+                <span>LAT</span>
+                <strong>
+                  {formatCoordinate(originLat)}
+                </strong>
+              </div>
 
-              {originConfidence}%
-
-              <span>
-                {" "}
-                confidence
-              </span>
-
+              <div>
+                <span>LON</span>
+                <strong>
+                  {formatCoordinate(originLon)}
+                </strong>
+              </div>
             </div>
 
-            <p>
+            <div className="origin-method">
+              <span>METHOD</span>
+              <strong>
+                {origin?.method ||
+                  "Backward drift hindcast"}
+              </strong>
+            </div>
 
-              Estimated origin:
+            <div className="origin-window">
+              <span>ESTIMATED WINDOW</span>
 
               <strong>
-
-                {" "}
-                {originLat.toFixed(3)}
-                °,
-                {" "}
-                {originLon.toFixed(3)}
-                °
-
+                {origin?.estimated_window_start
+                  ? new Date(
+                      origin.estimated_window_start
+                    ).toUTCString()
+                  : "Unavailable"}
               </strong>
 
-            </p>
-
-          </div>
+              <strong>
+                {origin?.estimated_window_end
+                  ? new Date(
+                      origin.estimated_window_end
+                    ).toUTCString()
+                  : "Unavailable"}
+              </strong>
+            </div>
+          </section>
 
           {/* =================================================
-              AIS ANALYSIS
+              AIS SUMMARY
           ================================================= */}
 
-          <div className="evidence-card">
+          <section className="evidence-panel">
 
-            <div className="evidence-card-header">
-
+            <div className="panel-header">
               <div>
+                <div className="panel-kicker">
+                  03 · AIS FILTER
+                </div>
 
-                <span className="evidence-number">
-                  03
-                </span>
+                <h2>Traffic Analysis</h2>
+              </div>
+            </div>
 
-                <h3>
-                  AIS Analysis
-                </h3>
+            <div className="stats-grid">
 
+              <div className="stat-box">
+                <span>TRACKS</span>
+                <strong>
+                  {safeNumber(
+                    ais?.total_tracks_analyzed
+                  )}
+                </strong>
               </div>
 
-              <span className="complete-status">
-                COMPLETE
-              </span>
-
-            </div>
-
-            <div className="evidence-value">
-
-              {ais?.tracks_in_origin_window ?? 0}
-
-              <span>
-                {" "}
-                vessels in origin window
-              </span>
-
-            </div>
-
-            <p>
-
-              {ais?.total_tracks_analyzed ?? 0}
-              {" "}
-              historical AIS tracks analyzed.
-
-            </p>
-
-            <div className="metric-grid">
-
-              <div>
-
-                <span>
-                  AIS COMPLETENESS
-                </span>
-
+              <div className="stat-box">
+                <span>ORIGIN WINDOW</span>
                 <strong>
-                  {aisCompleteness}%
+                  {safeNumber(
+                    ais?.tracks_in_origin_window
+                  )}
+                </strong>
+              </div>
+
+              <div className="stat-box">
+                <span>RANKED</span>
+                <strong>
+                  {safeNumber(
+                    ais?.candidates_ranked
+                  )}
+                </strong>
+              </div>
+
+              <div className="stat-box">
+                <span>QUALITY</span>
+                <strong>
+                  {formatPercent(
+                    ais?.data_quality
+                      ?.ais_completeness
+                  )}
+                </strong>
+              </div>
+            </div>
+
+            {ais?.data_quality?.gap_detected && (
+              <div className="warning-box">
+                <strong>
+                  AIS data gap detected
                 </strong>
 
-              </div>
-
-              <div>
-
                 <span>
-                  CANDIDATES
+                  {ais?.data_quality?.gap_note ||
+                    "Simulation partially compensates."}
                 </span>
-
-                <strong>
-                  {ais?.candidates_ranked ??
-                    candidates.length}
-                </strong>
-
               </div>
-
-            </div>
-
-          </div>
+            )}
+          </section>
 
           {/* =================================================
-              CANDIDATES
+              BACKWARD DRIFT TIMELINE
           ================================================= */}
 
-          <div className="candidate-section">
+          <section className="evidence-panel timeline-panel">
 
-            <div className="candidate-section-header">
-
+            <div className="panel-header">
               <div>
+                <div className="panel-kicker">
+                  DRIFT RECONSTRUCTION
+                </div>
 
-                <p className="eyebrow">
-                  VESSEL ATTRIBUTION
-                </p>
+                <h2>Backward Timeline</h2>
+              </div>
+            </div>
 
-                <h2>
-                  Candidate Vessels
-                </h2>
+            {backwardParticles.length > 0 ? (
+              <>
+                <div className="timeline-current">
+                  <span>SELECTED TIME</span>
 
+                  <strong>
+                    {safeNumber(
+                      selectedDriftPoint
+                        ?.t_offset_hours
+                    )}{" "}
+                    hours
+                  </strong>
+                </div>
+
+                <input
+                  type="range"
+                  min="0"
+                  max={
+                    Math.max(
+                      backwardParticles.length - 1,
+                      0
+                    )
+                  }
+                  step="1"
+                  value={selectedTimeIndex}
+                  onChange={handleTimelineChange}
+                  className="timeline-slider"
+                />
+
+                <div className="timeline-labels">
+                  {backwardParticles.map(
+                    (point, index) => (
+                      <button
+                        key={`${point.t_offset_hours}-${index}`}
+                        className={
+                          index ===
+                          selectedTimeIndex
+                            ? "timeline-label active"
+                            : "timeline-label"
+                        }
+                        onClick={() =>
+                          setSelectedTimeIndex(
+                            index
+                          )
+                        }
+                      >
+                        {safeNumber(
+                          point.t_offset_hours
+                        ) === 0
+                          ? "NOW"
+                          : `${safeNumber(
+                              point.t_offset_hours
+                            )}h`}
+                      </button>
+                    )
+                  )}
+                </div>
+
+                <div className="timeline-location">
+                  <span>POSITION</span>
+
+                  <strong>
+                    {formatCoordinate(
+                      selectedDriftLat
+                    )}
+                    {" , "}
+                    {formatCoordinate(
+                      selectedDriftLon
+                    )}
+                  </strong>
+                </div>
+              </>
+            ) : (
+              <div className="empty-state">
+                No backward-drift particle data
+                available.
+              </div>
+            )}
+          </section>
+
+          {/* =================================================
+              CANDIDATE RANKING
+          ================================================= */}
+
+          <section className="evidence-panel candidates-panel">
+
+            <div className="panel-header">
+              <div>
+                <div className="panel-kicker">
+                  04 · CANDIDATE RANKING
+                </div>
+
+                <h2>Vessel Candidates</h2>
               </div>
 
               <span className="candidate-count">
                 {candidates.length}
               </span>
-
             </div>
 
             <div className="candidate-list">
 
               {candidates.length === 0 ? (
+                <div className="empty-state">
+                  No compatible vessel candidates
+                  available.
+                </div>
+              ) : (
+                candidates.map(
+                  (candidate, index) => {
 
-                <div className="evidence-card">
+                    const score = clamp(
+                      candidate?.attribution_score
+                    );
 
-                  <p>
-                    No compatible vessel candidates
-                    are currently available.
-                  </p>
+                    const isSelected =
+                      index ===
+                      selectedCandidate;
 
+                    return (
+                      <button
+                        key={
+                          candidate?.mmsi ||
+                          index
+                        }
+                        className={`candidate-card ${
+                          isSelected
+                            ? "selected"
+                            : ""
+                        }`}
+                        onClick={() =>
+                          setSelectedCandidate(
+                            index
+                          )
+                        }
+                      >
+                        <div className="candidate-top">
+
+                          <div className="rank">
+                            #{candidate?.rank ??
+                              index + 1}
+                          </div>
+
+                          <div className="candidate-main">
+                            <strong>
+                              {candidate?.vessel_name ||
+                                "Unknown Vessel"}
+                            </strong>
+
+                            <span>
+                              {candidate?.vessel_type ||
+                                "Unknown Type"}
+                              {" · "}
+                              {candidate?.flag ||
+                                "N/A"}
+                            </span>
+                          </div>
+
+                          <div className="candidate-score">
+                            {formatPercent(score)}
+                          </div>
+                        </div>
+
+                        <div className="candidate-progress">
+                          <div
+                            style={{
+                              width: `${score * 100}%`,
+                            }}
+                          />
+                        </div>
+
+                        <div className="candidate-bottom">
+                          <span>
+                            MMSI{" "}
+                            {candidate?.mmsi ||
+                              "Unavailable"}
+                          </span>
+
+                          <span>
+                            {candidate?.label ||
+                              "Candidate"}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  }
+                )
+              )}
+            </div>
+          </section>
+
+          {/* =================================================
+              SELECTED CANDIDATE EVIDENCE
+          ================================================= */}
+
+          {currentCandidate && (
+            <section className="evidence-panel selected-evidence">
+
+              <div className="panel-header">
+                <div>
+                  <div className="panel-kicker">
+                    SELECTED CANDIDATE
+                  </div>
+
+                  <h2>
+                    {currentCandidate.vessel_name}
+                  </h2>
                 </div>
 
-              ) : (
+                <span className="confidence-badge candidate">
+                  {formatPercent(
+                    currentCandidate.attribution_score
+                  )}
+                </span>
+              </div>
 
-                candidates.map((candidate) => {
+              <div className="candidate-meta">
+                <span>
+                  MMSI:{" "}
+                  {currentCandidate.mmsi}
+                </span>
 
-                  const score = Math.round(
-                    safeNumber(
-                      candidate?.attribution_score,
-                      0
-                    ) * 100
-                  );
+                <span>
+                  {currentCandidate.vessel_type}
+                </span>
 
-                  const isSelected =
-                    selectedCandidate?.mmsi ===
-                    candidate?.mmsi;
+                <span>
+                  Flag:{" "}
+                  {currentCandidate.flag}
+                </span>
+              </div>
+
+              <div className="subheading">
+                Why this score?
+              </div>
+
+              <div className="feature-list">
+
+                {Object.entries(
+                  currentCandidate.features || {}
+                ).map(([key, value]) => {
+
+                  const label = key
+                    .replaceAll("_", " ")
+                    .replace(
+                      /\b\w/g,
+                      (letter) =>
+                        letter.toUpperCase()
+                    );
 
                   return (
-                    <button
-                      key={
-                        candidate?.mmsi ??
-                        candidate?.rank
-                      }
-                      type="button"
-                      className={`candidate-card ${
-                        isSelected
-                          ? "selected"
-                          : ""
-                      }`}
-                      onClick={() =>
-                        setSelectedCandidate(candidate)
-                      }
+                    <div
+                      className="feature-row"
+                      key={key}
                     >
+                      <span>{label}</span>
 
-                      <div className="candidate-rank">
-                        #{candidate?.rank ?? "-"}
-                      </div>
-
-                      <div className="candidate-info">
-
-                        <strong>
-                          {candidate?.vessel_name ??
-                            "Unknown Vessel"}
-                        </strong>
-
-                        <span>
-                          {candidate?.vessel_type ??
-                            "Unknown Type"}
-                          {" · "}
-                          {candidate?.flag ??
-                            "N/A"}
-                        </span>
-
-                        <small>
-                          MMSI{" "}
-                          {candidate?.mmsi ??
-                            "Unknown"}
-                        </small>
-
-                      </div>
-
-                      <div className="candidate-score">
+                      <div className="feature-score">
+                        <div className="feature-bar">
+                          <div
+                            style={{
+                              width: `${
+                                clamp(value) *
+                                100
+                              }%`,
+                            }}
+                          />
+                        </div>
 
                         <strong>
-                          {score}%
+                          {formatPercent(value)}
                         </strong>
-
-                        <span>
-                          {candidate?.label ??
-                            "Candidate"}
-                        </span>
-
                       </div>
-
-                    </button>
+                    </div>
                   );
-                })
+                })}
+              </div>
 
-              )}
+              {Array.isArray(
+                currentCandidate.evidence_timeline
+              ) &&
+                currentCandidate
+                  .evidence_timeline.length >
+                  0 && (
+                  <div className="candidate-timeline">
 
-            </div>
+                    <div className="subheading">
+                      Evidence Timeline
+                    </div>
 
+                    {currentCandidate.evidence_timeline.map(
+                      (event, index) => (
+                        <div
+                          className={`evidence-event ${
+                            event?.highlight
+                              ? "highlight"
+                              : ""
+                          }`}
+                          key={`${event.time}-${index}`}
+                        >
+                          <div className="event-time">
+                            {event.time}
+                          </div>
+
+                          <div className="event-dot" />
+
+                          <div className="event-label">
+                            {event.label}
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+            </section>
+          )}
+
+          {/* =================================================
+              SCIENTIFIC DISCLAIMER
+          ================================================= */}
+
+          <div className="investigation-disclaimer">
+            <strong>
+              Investigation support only
+            </strong>
+
+            <span>
+              {spillData?.disclaimers?.attribution ||
+                "Candidate rankings support investigation and do not constitute legal attribution."}
+            </span>
           </div>
 
         </aside>
-
       </div>
-
-      {/* =====================================================
-          TIMELINE
-      ===================================================== */}
-
-      <div className="timeline-section">
-
-        <div className="timeline-header">
-
-          <div>
-
-            <p className="eyebrow">
-              DRIFT RECONSTRUCTION
-            </p>
-
-            <h2>
-              Backward Drift Timeline
-            </h2>
-
-          </div>
-
-          <strong>
-            {timelineLabel}
-          </strong>
-
-        </div>
-
-        <input
-          type="range"
-          min="-24"
-          max="0"
-          step="6"
-          value={timelineHour}
-          onChange={(event) =>
-            setTimelineHour(
-              Number(event.target.value)
-            )
-          }
-          className="timeline-slider"
-        />
-
-        <div className="timeline-labels">
-
-          <span>
-            -24h
-          </span>
-
-          <span>
-            -18h
-          </span>
-
-          <span>
-            -12h
-          </span>
-
-          <span>
-            -6h
-          </span>
-
-          <span>
-            NOW
-          </span>
-
-        </div>
-
-        {/* CURRENT TIMELINE POSITION */}
-
-        <div
-          style={{
-            marginTop: "12px",
-            display: "flex",
-            justifyContent: "space-between",
-            gap: "12px",
-            color: "#64748b",
-            fontSize: "9px",
-          }}
-        >
-
-          <span>
-            Selected position:
-          </span>
-
-          <strong
-            style={{
-              color: "#facc15",
-              fontFamily: "monospace",
-            }}
-          >
-            {selectedParticle
-              ? `${safeNumber(
-                  selectedParticle.lat
-                ).toFixed(3)}°,
-                ${safeNumber(
-                  selectedParticle.lon
-                ).toFixed(3)}°`
-              : "N/A"}
-          </strong>
-
-        </div>
-
-      </div>
-
-      {/* =====================================================
-          DISCLAIMER
-      ===================================================== */}
-
-      <div className="investigation-disclaimer">
-
-        <strong>
-          Investigation note:
-        </strong>{" "}
-
-        {spillData?.disclaimers?.attribution ??
-          "Candidate rankings support investigation and do not constitute legal attribution."}
-
-      </div>
-
-    </section>
+    </div>
   );
 }
-
-export default Investigation;
