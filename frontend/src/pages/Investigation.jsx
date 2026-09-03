@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import {
@@ -9,12 +9,14 @@ import {
   Polyline,
   Popup,
   Rectangle,
-  useMap,
 } from "react-leaflet";
 
 import "leaflet/dist/leaflet.css";
 
 import spillData from "../data/mockSpillData.json";
+
+import SceneMetadata from "../components/SceneMetadata";
+import CompatibilityStatus from "../components/CompatibilityStatus";
 
 /* =========================================================
    HELPERS
@@ -22,6 +24,7 @@ import spillData from "../data/mockSpillData.json";
 
 const safeNumber = (value, fallback = 0) => {
   const number = Number(value);
+
   return Number.isFinite(number) ? number : fallback;
 };
 
@@ -37,28 +40,16 @@ const formatArea = (value) =>
 const formatCoordinate = (value) =>
   safeNumber(value).toFixed(3);
 
-/* =========================================================
-   MAP RESIZE HANDLER
-========================================================= */
-
-function MapResizeHandler() {
-  const map = useMap();
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      map.invalidateSize();
-    }, 150);
-
-    return () => clearTimeout(timer);
-  }, [map]);
-
-  return null;
-}
 
 /* =========================================================
    FALLBACK DEMO SPILL POLYGON
-   The provided JSON currently has polygon_geojson: null.
-   This polygon is ONLY for the Day-2 frontend demo.
+
+   Current mock JSON contains:
+   polygon_geojson: null
+
+   Therefore this polygon is retained only for the
+   frontend demonstration until Aayush provides the
+   real GeoJSON endpoint.
 ========================================================= */
 
 const DEMO_SPILL_POLYGON = [
@@ -75,6 +66,7 @@ const DEMO_SPILL_POLYGON = [
   [18.185, 72.400],
 ];
 
+
 /* =========================================================
    MAIN COMPONENT
 ========================================================= */
@@ -83,9 +75,14 @@ export default function Investigation() {
   const { id } = useParams();
   const navigate = useNavigate();
 
+  /* =======================================================
+     STATE
+  ======================================================= */
+
   const [selectedCandidate, setSelectedCandidate] = useState(0);
 
-  const [selectedTimeIndex, setSelectedTimeIndex] = useState(0);
+  const [selectedTimeIndex, setSelectedTimeIndex] =
+    useState(0);
 
   const [layers, setLayers] = useState({
     spill: true,
@@ -94,24 +91,54 @@ export default function Investigation() {
     scene: false,
   });
 
+
   /* =======================================================
      DATA
   ======================================================= */
 
-  const investigation = spillData?.investigation ?? {};
-  const scenario = spillData?.scenario_manifest;
-  const spill = spillData?.spill_detection ?? {};
-  const origin = spillData?.origin_reconstruction ?? {};
-  const ais = spillData?.ais_summary ?? {};
-  const candidates = spillData?.vessel_candidates ?? [];
-  
+  const investigation =
+    spillData?.investigation ?? {};
+
+  const scenario =
+    spillData?.scenario_manifest ?? {};
+
+  const spill =
+    spillData?.spill_detection ?? {};
+
+  const origin =
+    spillData?.origin_reconstruction ?? {};
+
+  const ais =
+    spillData?.ais_summary ?? {};
+
+  const candidates =
+    spillData?.vessel_candidates ?? [];
+
+  const compatibility =
+    scenario?.compatibility ?? {
+      status: "blocked",
+      reasons: [
+        "Compatibility information unavailable.",
+      ],
+    };
+
+  const backwardParticles =
+    origin?.backward_particles ?? [];
+
 
   /* =======================================================
      COORDINATES
   ======================================================= */
 
-  const spillLat = safeNumber(spill?.centroid?.lat, 18.234);
-  const spillLon = safeNumber(spill?.centroid?.lon, 72.452);
+  const spillLat = safeNumber(
+    spill?.centroid?.lat,
+    18.234
+  );
+
+  const spillLon = safeNumber(
+    spill?.centroid?.lon,
+    72.452
+  );
 
   const originLat = safeNumber(
     origin?.estimated_origin?.lat,
@@ -123,41 +150,52 @@ export default function Investigation() {
     71.8
   );
 
+
   /* =======================================================
      MAP CENTER
   ======================================================= */
 
   const mapCenter = [
-  (spillLat + originLat) / 2,
-  (spillLon + originLon) / 2,
-];
+    (spillLat + originLat) / 2,
+    (spillLon + originLon) / 2,
+  ];
 
-  const sar = scenario?.sar ?? {};
+
+  /* =======================================================
+     SAR SCENE
+  ======================================================= */
+
+  const sar =
+    scenario?.sar ?? {};
 
 
   /* =======================================================
      SCENE BOUNDS
   ======================================================= */
 
-  const sceneBounds = useMemo(() => {
-  if (!sar.bounds || sar.bounds.length !== 4) {
-    return null;
+  let sceneBounds = null;
+
+  if (
+    Array.isArray(sar?.bounds) &&
+    sar.bounds.length === 4
+  ) {
+    const [
+      minLon,
+      minLat,
+      maxLon,
+      maxLat,
+    ] = sar.bounds;
+
+    sceneBounds = [
+      [minLat, minLon],
+      [maxLat, maxLon],
+    ];
   }
 
-  const [minLon, minLat, maxLon, maxLat] = sar.bounds;
-
-  return [
-    [minLat, minLon],
-    [maxLat, maxLon],
-  ];
-}, [sar.bounds]);
 
   /* =======================================================
-     BACKWARD DRIFT PARTICLES
+     BACKWARD DRIFT PATH
   ======================================================= */
-
-  
-  
 
   const driftPath = backwardParticles
     .filter(
@@ -170,41 +208,57 @@ export default function Investigation() {
       safeNumber(point.lon),
     ]);
 
+
   /* =======================================================
      CURRENT TIMELINE POINT
   ======================================================= */
 
   const selectedDriftPoint =
     backwardParticles[selectedTimeIndex] ??
-    backwardParticles[backwardParticles.length - 1] ??
+    backwardParticles[
+      backwardParticles.length - 1
+    ] ??
     null;
 
-  const selectedDriftLat = selectedDriftPoint
-    ? safeNumber(selectedDriftPoint.lat, originLat)
-    : originLat;
+  const selectedDriftLat =
+    selectedDriftPoint
+      ? safeNumber(
+          selectedDriftPoint.lat,
+          originLat
+        )
+      : originLat;
 
-  const selectedDriftLon = selectedDriftPoint
-    ? safeNumber(selectedDriftPoint.lon, originLon)
-    : originLon;
+  const selectedDriftLon =
+    selectedDriftPoint
+      ? safeNumber(
+          selectedDriftPoint.lon,
+          originLon
+        )
+      : originLon;
+
 
   /* =======================================================
      VISIBLE DRIFT PATH
   ======================================================= */
-  const backwardParticles = origin?.backward_particles ?? [];
 
-const visibleDriftPath = backwardParticles
-  .slice(selectedTimeIndex)
-  .map((point) => [
-    safeNumber(point.lat),
-    safeNumber(point.lon),
-  ]);
+  const visibleDriftPath =
+    backwardParticles
+      .slice(selectedTimeIndex)
+      .map((point) => [
+        safeNumber(point?.lat),
+        safeNumber(point?.lon),
+      ]);
+
 
   /* =======================================================
      SELECTED CANDIDATE
   ======================================================= */
 
   const currentCandidate =
-    candidates[selectedCandidate] ?? null;
+    compatibility?.status === "blocked"
+      ? null
+      : candidates[selectedCandidate] ?? null;
+
 
   /* =======================================================
      MAP LAYER TOGGLE
@@ -217,16 +271,22 @@ const visibleDriftPath = backwardParticles
     }));
   };
 
+
   /* =======================================================
      TIMELINE
   ======================================================= */
 
   const handleTimelineChange = (event) => {
-    setSelectedTimeIndex(Number(event.target.value));
+    setSelectedTimeIndex(
+      Number(event.target.value)
+    );
   };
 
+
   /* =======================================================
-     SAFE SPILL POLYGON
+     SPILL POLYGON
+
+     Real polygon_geojson will come from backend later.
   ======================================================= */
 
   const spillPolygon =
@@ -235,37 +295,65 @@ const visibleDriftPath = backwardParticles
       ? spill.polygon_geojson
       : DEMO_SPILL_POLYGON;
 
+
   /* =======================================================
-     RENDER
+     CANDIDATE RANKING ACTION
+
+     Actual ranking endpoint will be connected later.
   ======================================================= */
+
+  const handleRankCandidates = () => {
+    if (compatibility?.status === "blocked") {
+      return;
+    }
+
+    console.log(
+      "Candidate ranking will be connected to the backend."
+    );
+  };
+
+
+  /* =========================================================
+     RENDER
+  ========================================================= */
 
   return (
     <div className="investigation-page">
-      {/* =====================================================
+
+      {/* ===================================================
           PAGE HEADER
-      ===================================================== */}
+      =================================================== */}
 
       <div className="investigation-header">
+
         <div>
           <div className="eyebrow">
             ACTIVE INVESTIGATION
           </div>
 
           <h1>
-            {investigation?.id || id || "Investigation"}
+            {investigation?.id ||
+              id ||
+              "Investigation"}
           </h1>
 
           <p>
-            {investigation?.region || "Arabian Sea"}
+            {investigation?.region ||
+              "Arabian Sea"}
+
             {" · "}
+
             {investigation?.demo_case_label ||
               "Marine oil-spill reconstruction"}
           </p>
         </div>
 
+
         <div className="header-actions">
+
           <div className="status-badge">
             <span className="status-dot" />
+
             {investigation?.status?.toUpperCase() ||
               "ACTIVE"}
           </div>
@@ -276,18 +364,40 @@ const visibleDriftPath = backwardParticles
           >
             ← Dashboard
           </button>
+
         </div>
       </div>
 
-      {/* =====================================================
+
+      {/* ===================================================
+          DAY 4 — SCENE METADATA
+      =================================================== */}
+
+      <SceneMetadata
+        investigation={spillData}
+      />
+
+
+      {/* ===================================================
+          DAY 4 — COMPATIBILITY STATUS
+      =================================================== */}
+
+      <CompatibilityStatus
+        compatibility={compatibility}
+        onRankCandidates={handleRankCandidates}
+      />
+
+
+      {/* ===================================================
           MAIN WORKSPACE
-      ===================================================== */}
+      =================================================== */}
 
       <div className="investigation-workspace">
 
-        {/* ===================================================
+
+        {/* =================================================
             MAP
-        =================================================== */}
+        ================================================= */}
 
         <section className="map-section">
 
@@ -297,63 +407,79 @@ const visibleDriftPath = backwardParticles
             scrollWheelZoom
             className="investigation-map"
           >
-            <MapResizeHandler />
 
             <TileLayer
-              attribution='&copy; OpenStreetMap contributors'
+              attribution="&copy; OpenStreetMap contributors"
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            {/* -----------------------------------------------
+
+            {/* ---------------------------------------------
                 SAR SCENE BOUNDS
-            ------------------------------------------------ */}
+            --------------------------------------------- */}
 
-            {layers.scene && (
-              <Rectangle
-                bounds={sceneBounds}
-                pathOptions={{
-                  color: "#64748b",
-                  weight: 1,
-                  dashArray: "6 6",
-                  fillOpacity: 0.03,
-                }}
-              />
-            )}
+            {layers.scene &&
+              sceneBounds && (
+                <Rectangle
+                  bounds={sceneBounds}
+                  pathOptions={{
+                    color: "#64748b",
+                    weight: 1,
+                    dashArray: "6 6",
+                    fillOpacity: 0.03,
+                  }}
+                />
+              )}
 
-            {/* -----------------------------------------------
-                SPILL
-            ------------------------------------------------ */}
 
-            {layers.spill && spillPolygon.length > 0 && (
-              <Polygon
-                positions={spillPolygon}
-                pathOptions={{
-                  color: "#ef4444",
-                  weight: 2,
-                  fillColor: "#ef4444",
-                  fillOpacity: 0.32,
-                }}
-              >
-                <Popup>
-                  <strong>Detected Oil Spill</strong>
-                  <br />
-                  Area: {formatArea(spill?.area_km2)}
-                  <br />
-                  Confidence:{" "}
-                  {formatPercent(
-                    spill?.detection_confidence
-                  )}
-                </Popup>
-              </Polygon>
-            )}
+            {/* ---------------------------------------------
+                DETECTED SPILL
+            --------------------------------------------- */}
 
-            {/* -----------------------------------------------
+            {layers.spill &&
+              spillPolygon.length > 0 && (
+                <Polygon
+                  positions={spillPolygon}
+                  pathOptions={{
+                    color: "#ef4444",
+                    weight: 2,
+                    fillColor: "#ef4444",
+                    fillOpacity: 0.32,
+                  }}
+                >
+                  <Popup>
+                    <strong>
+                      Detected Oil Spill
+                    </strong>
+
+                    <br />
+
+                    Area:{" "}
+                    {formatArea(
+                      spill?.area_km2
+                    )}
+
+                    <br />
+
+                    Confidence:{" "}
+                    {formatPercent(
+                      spill?.detection_confidence
+                    )}
+                  </Popup>
+                </Polygon>
+              )}
+
+
+            {/* ---------------------------------------------
                 SPILL CENTROID
-            ------------------------------------------------ */}
+            --------------------------------------------- */}
 
             {layers.spill && (
               <CircleMarker
-                center={[spillLat, spillLon]}
+                center={[
+                  spillLat,
+                  spillLon,
+                ]}
                 radius={7}
                 pathOptions={{
                   color: "#ffffff",
@@ -363,22 +489,38 @@ const visibleDriftPath = backwardParticles
                 }}
               >
                 <Popup>
-                  <strong>Detected Spill Centroid</strong>
+                  <strong>
+                    Detected Spill Centroid
+                  </strong>
+
                   <br />
-                  Lat: {formatCoordinate(spillLat)}
+
+                  Lat:{" "}
+                  {formatCoordinate(
+                    spillLat
+                  )}
+
                   <br />
-                  Lon: {formatCoordinate(spillLon)}
+
+                  Lon:{" "}
+                  {formatCoordinate(
+                    spillLon
+                  )}
                 </Popup>
               </CircleMarker>
             )}
 
-            {/* -----------------------------------------------
-                ORIGIN
-            ------------------------------------------------ */}
+
+            {/* ---------------------------------------------
+                ESTIMATED ORIGIN
+            --------------------------------------------- */}
 
             {layers.origin && (
               <CircleMarker
-                center={[originLat, originLon]}
+                center={[
+                  originLat,
+                  originLon,
+                ]}
                 radius={8}
                 pathOptions={{
                   color: "#ffffff",
@@ -388,37 +530,56 @@ const visibleDriftPath = backwardParticles
                 }}
               >
                 <Popup>
-                  <strong>Estimated Spill Origin</strong>
+                  <strong>
+                    Estimated Spill Origin
+                  </strong>
+
                   <br />
-                  Lat: {formatCoordinate(originLat)}
+
+                  Lat:{" "}
+                  {formatCoordinate(
+                    originLat
+                  )}
+
                   <br />
-                  Lon: {formatCoordinate(originLon)}
+
+                  Lon:{" "}
+                  {formatCoordinate(
+                    originLon
+                  )}
+
                   <br />
+
                   Confidence:{" "}
-                  {formatPercent(origin?.confidence)}
+                  {formatPercent(
+                    origin?.confidence
+                  )}
                 </Popup>
               </CircleMarker>
             )}
 
-            {/* -----------------------------------------------
+
+            {/* ---------------------------------------------
                 FULL BACKWARD DRIFT PATH
-            ------------------------------------------------ */}
+            --------------------------------------------- */}
 
-            {layers.drift && driftPath.length > 1 && (
-              <Polyline
-                positions={driftPath}
-                pathOptions={{
-                  color: "#38bdf8",
-                  weight: 3,
-                  opacity: 0.45,
-                  dashArray: "7 8",
-                }}
-              />
-            )}
+            {layers.drift &&
+              driftPath.length > 1 && (
+                <Polyline
+                  positions={driftPath}
+                  pathOptions={{
+                    color: "#38bdf8",
+                    weight: 3,
+                    opacity: 0.45,
+                    dashArray: "7 8",
+                  }}
+                />
+              )}
 
-            {/* -----------------------------------------------
+
+            {/* ---------------------------------------------
                 ACTIVE TIMELINE PATH
-            ------------------------------------------------ */}
+            --------------------------------------------- */}
 
             {layers.drift &&
               visibleDriftPath.length > 1 && (
@@ -432,110 +593,169 @@ const visibleDriftPath = backwardParticles
                 />
               )}
 
-            {/* -----------------------------------------------
-                SELECTED DRIFT PARTICLE
-            ------------------------------------------------ */}
 
-            {layers.drift && selectedDriftPoint && (
-              <CircleMarker
-                center={[
-                  selectedDriftLat,
-                  selectedDriftLon,
-                ]}
-                radius={6}
-                pathOptions={{
-                  color: "#ffffff",
-                  weight: 2,
-                  fillColor: "#22d3ee",
-                  fillOpacity: 1,
-                }}
-              >
-                <Popup>
-                  <strong>Backward Drift Position</strong>
-                  <br />
-                  T ={" "}
-                  {safeNumber(
-                    selectedDriftPoint.t_offset_hours
-                  )}{" "}
-                  hours
-                  <br />
-                  Lat:{" "}
-                  {formatCoordinate(selectedDriftLat)}
-                  <br />
-                  Lon:{" "}
-                  {formatCoordinate(selectedDriftLon)}
-                </Popup>
-              </CircleMarker>
-            )}
+            {/* ---------------------------------------------
+                SELECTED DRIFT PARTICLE
+            --------------------------------------------- */}
+
+            {layers.drift &&
+              selectedDriftPoint && (
+                <CircleMarker
+                  center={[
+                    selectedDriftLat,
+                    selectedDriftLon,
+                  ]}
+                  radius={6}
+                  pathOptions={{
+                    color: "#ffffff",
+                    weight: 2,
+                    fillColor: "#22d3ee",
+                    fillOpacity: 1,
+                  }}
+                >
+                  <Popup>
+
+                    <strong>
+                      Backward Drift Position
+                    </strong>
+
+                    <br />
+
+                    T ={" "}
+                    {safeNumber(
+                      selectedDriftPoint?.t_offset_hours
+                    )}{" "}
+                    hours
+
+                    <br />
+
+                    Lat:{" "}
+                    {formatCoordinate(
+                      selectedDriftLat
+                    )}
+
+                    <br />
+
+                    Lon:{" "}
+                    {formatCoordinate(
+                      selectedDriftLon
+                    )}
+
+                  </Popup>
+                </CircleMarker>
+              )}
+
           </MapContainer>
 
+
           {/* =================================================
-              MAP OVERLAY — LEGEND
+              MAP LEGEND
           ================================================= */}
 
           <div className="map-legend">
+
             <div className="legend-title">
               MAP LAYERS
             </div>
 
+
             <button
               className={`legend-row ${
-                layers.spill ? "active" : ""
+                layers.spill
+                  ? "active"
+                  : ""
               }`}
-              onClick={() => toggleLayer("spill")}
+              onClick={() =>
+                toggleLayer("spill")
+              }
             >
               <span className="legend-marker spill-marker" />
-              <span>Detected Spill</span>
+
+              <span>
+                Detected Spill
+              </span>
             </button>
+
 
             <button
               className={`legend-row ${
-                layers.origin ? "active" : ""
+                layers.origin
+                  ? "active"
+                  : ""
               }`}
-              onClick={() => toggleLayer("origin")}
+              onClick={() =>
+                toggleLayer("origin")
+              }
             >
               <span className="legend-marker origin-marker" />
-              <span>Estimated Origin</span>
+
+              <span>
+                Estimated Origin
+              </span>
             </button>
+
 
             <button
               className={`legend-row ${
-                layers.drift ? "active" : ""
+                layers.drift
+                  ? "active"
+                  : ""
               }`}
-              onClick={() => toggleLayer("drift")}
+              onClick={() =>
+                toggleLayer("drift")
+              }
             >
               <span className="legend-marker drift-marker" />
-              <span>Backward Drift</span>
+
+              <span>
+                Backward Drift
+              </span>
             </button>
+
 
             <button
               className={`legend-row ${
-                layers.scene ? "active" : ""
+                layers.scene
+                  ? "active"
+                  : ""
               }`}
-              onClick={() => toggleLayer("scene")}
+              onClick={() =>
+                toggleLayer("scene")
+              }
             >
               <span className="legend-marker scene-marker" />
-              <span>SAR Scene Bounds</span>
+
+              <span>
+                SAR Scene Bounds
+              </span>
             </button>
+
           </div>
+
 
           {/* =================================================
               MAP STATUS
           ================================================= */}
 
           <div className="map-status">
+
             <span className="map-status-dot" />
+
             <span>
               SAR + Ocean Dynamics + AIS
             </span>
+
           </div>
+
         </section>
 
-        {/* ===================================================
+
+        {/* =================================================
             RIGHT SIDEBAR
-        =================================================== */}
+        ================================================= */}
 
         <aside className="investigation-sidebar">
+
 
           {/* =================================================
               DETECTION SUMMARY
@@ -544,31 +764,43 @@ const visibleDriftPath = backwardParticles
           <section className="evidence-panel">
 
             <div className="panel-header">
+
               <div>
+
                 <div className="panel-kicker">
                   01 · SAR DETECTION
                 </div>
 
-                <h2>Spill Characterization</h2>
+                <h2>
+                  Spill Characterization
+                </h2>
+
               </div>
 
               <span className="confidence-badge high">
                 {spill?.confidence_label ||
                   "HIGH"}
               </span>
+
             </div>
+
 
             <div className="stats-grid">
 
               <div className="stat-box">
                 <span>AREA</span>
+
                 <strong>
-                  {formatArea(spill?.area_km2)}
+                  {formatArea(
+                    spill?.area_km2
+                  )}
                 </strong>
               </div>
 
+
               <div className="stat-box">
                 <span>PERIMETER</span>
+
                 <strong>
                   {safeNumber(
                     spill?.perimeter_km
@@ -577,8 +809,10 @@ const visibleDriftPath = backwardParticles
                 </strong>
               </div>
 
+
               <div className="stat-box">
                 <span>CONFIDENCE</span>
+
                 <strong>
                   {formatPercent(
                     spill?.detection_confidence
@@ -586,17 +820,23 @@ const visibleDriftPath = backwardParticles
                 </strong>
               </div>
 
+
               <div className="stat-box">
                 <span>ORIENTATION</span>
+
                 <strong>
                   {safeNumber(
                     spill?.orientation_deg
-                  )}°
+                  )}
+                  °
                 </strong>
               </div>
+
             </div>
 
+
             <div className="evidence-factors">
+
               <div className="subheading">
                 Detection Evidence
               </div>
@@ -610,18 +850,26 @@ const visibleDriftPath = backwardParticles
                       className="factor-row"
                       key={factor.label}
                     >
-                      <span>{factor.label}</span>
+
+                      <span>
+                        {factor.label}
+                      </span>
 
                       <div className="factor-value">
+
                         <div className="factor-bar">
+
                           <div
                             className="factor-fill"
                             style={{
-                              width: `${clamp(
-                                factor.value
-                              ) * 100}%`,
+                              width: `${
+                                clamp(
+                                  factor.value
+                                ) * 100
+                              }%`,
                             }}
                           />
+
                         </div>
 
                         <strong>
@@ -629,12 +877,17 @@ const visibleDriftPath = backwardParticles
                             factor.value
                           )}
                         </strong>
+
                       </div>
+
                     </div>
                   )
                 )}
+
             </div>
+
           </section>
+
 
           {/* =================================================
               ORIGIN RECONSTRUCTION
@@ -643,46 +896,70 @@ const visibleDriftPath = backwardParticles
           <section className="evidence-panel">
 
             <div className="panel-header">
+
               <div>
+
                 <div className="panel-kicker">
                   02 · ORIGIN HINDCAST
                 </div>
 
-                <h2>Estimated Origin</h2>
+                <h2>
+                  Estimated Origin
+                </h2>
+
               </div>
 
               <span className="confidence-badge medium">
                 {origin?.confidence_label ||
                   "MEDIUM"}
               </span>
+
             </div>
 
+
             <div className="origin-coordinates">
+
               <div>
                 <span>LAT</span>
+
                 <strong>
-                  {formatCoordinate(originLat)}
+                  {formatCoordinate(
+                    originLat
+                  )}
                 </strong>
               </div>
+
 
               <div>
                 <span>LON</span>
+
                 <strong>
-                  {formatCoordinate(originLon)}
+                  {formatCoordinate(
+                    originLon
+                  )}
                 </strong>
               </div>
+
             </div>
 
+
             <div className="origin-method">
+
               <span>METHOD</span>
+
               <strong>
                 {origin?.method ||
                   "Backward drift hindcast"}
               </strong>
+
             </div>
 
+
             <div className="origin-window">
-              <span>ESTIMATED WINDOW</span>
+
+              <span>
+                ESTIMATED WINDOW
+              </span>
 
               <strong>
                 {origin?.estimated_window_start
@@ -699,8 +976,11 @@ const visibleDriftPath = backwardParticles
                     ).toUTCString()
                   : "Unavailable"}
               </strong>
+
             </div>
+
           </section>
+
 
           {/* =================================================
               AIS SUMMARY
@@ -709,19 +989,27 @@ const visibleDriftPath = backwardParticles
           <section className="evidence-panel">
 
             <div className="panel-header">
+
               <div>
+
                 <div className="panel-kicker">
                   03 · AIS FILTER
                 </div>
 
-                <h2>Traffic Analysis</h2>
+                <h2>
+                  Traffic Analysis
+                </h2>
+
               </div>
+
             </div>
+
 
             <div className="stats-grid">
 
               <div className="stat-box">
                 <span>TRACKS</span>
+
                 <strong>
                   {safeNumber(
                     ais?.total_tracks_analyzed
@@ -729,8 +1017,12 @@ const visibleDriftPath = backwardParticles
                 </strong>
               </div>
 
+
               <div className="stat-box">
-                <span>ORIGIN WINDOW</span>
+                <span>
+                  ORIGIN WINDOW
+                </span>
+
                 <strong>
                   {safeNumber(
                     ais?.tracks_in_origin_window
@@ -738,8 +1030,10 @@ const visibleDriftPath = backwardParticles
                 </strong>
               </div>
 
+
               <div className="stat-box">
                 <span>RANKED</span>
+
                 <strong>
                   {safeNumber(
                     ais?.candidates_ranked
@@ -747,8 +1041,10 @@ const visibleDriftPath = backwardParticles
                 </strong>
               </div>
 
+
               <div className="stat-box">
                 <span>QUALITY</span>
+
                 <strong>
                   {formatPercent(
                     ais?.data_quality
@@ -756,21 +1052,29 @@ const visibleDriftPath = backwardParticles
                   )}
                 </strong>
               </div>
+
             </div>
 
-            {ais?.data_quality?.gap_detected && (
+
+            {ais?.data_quality
+              ?.gap_detected && (
               <div className="warning-box">
+
                 <strong>
                   AIS data gap detected
                 </strong>
 
                 <span>
-                  {ais?.data_quality?.gap_note ||
+                  {ais?.data_quality
+                    ?.gap_note ||
                     "Simulation partially compensates."}
                 </span>
+
               </div>
             )}
+
           </section>
+
 
           {/* =================================================
               BACKWARD DRIFT TIMELINE
@@ -779,19 +1083,30 @@ const visibleDriftPath = backwardParticles
           <section className="evidence-panel timeline-panel">
 
             <div className="panel-header">
+
               <div>
+
                 <div className="panel-kicker">
                   DRIFT RECONSTRUCTION
                 </div>
 
-                <h2>Backward Timeline</h2>
+                <h2>
+                  Backward Timeline
+                </h2>
+
               </div>
+
             </div>
+
 
             {backwardParticles.length > 0 ? (
               <>
+
                 <div className="timeline-current">
-                  <span>SELECTED TIME</span>
+
+                  <span>
+                    SELECTED TIME
+                  </span>
 
                   <strong>
                     {safeNumber(
@@ -800,28 +1115,32 @@ const visibleDriftPath = backwardParticles
                     )}{" "}
                     hours
                   </strong>
+
                 </div>
+
 
                 <input
                   type="range"
                   min="0"
-                  max={
-                    Math.max(
-                      backwardParticles.length - 1,
-                      0
-                    )
-                  }
+                  max={Math.max(
+                    backwardParticles.length - 1,
+                    0
+                  )}
                   step="1"
                   value={selectedTimeIndex}
-                  onChange={handleTimelineChange}
+                  onChange={
+                    handleTimelineChange
+                  }
                   className="timeline-slider"
                 />
 
+
                 <div className="timeline-labels">
+
                   {backwardParticles.map(
                     (point, index) => (
                       <button
-                        key={`${point.t_offset_hours}-${index}`}
+                        key={`${point?.t_offset_hours}-${index}`}
                         className={
                           index ===
                           selectedTimeIndex
@@ -835,19 +1154,24 @@ const visibleDriftPath = backwardParticles
                         }
                       >
                         {safeNumber(
-                          point.t_offset_hours
+                          point?.t_offset_hours
                         ) === 0
                           ? "NOW"
                           : `${safeNumber(
-                              point.t_offset_hours
+                              point?.t_offset_hours
                             )}h`}
                       </button>
                     )
                   )}
+
                 </div>
 
+
                 <div className="timeline-location">
-                  <span>POSITION</span>
+
+                  <span>
+                    POSITION
+                  </span>
 
                   <strong>
                     {formatCoordinate(
@@ -858,7 +1182,9 @@ const visibleDriftPath = backwardParticles
                       selectedDriftLon
                     )}
                   </strong>
+
                 </div>
+
               </>
             ) : (
               <div className="empty-state">
@@ -866,7 +1192,9 @@ const visibleDriftPath = backwardParticles
                 available.
               </div>
             )}
+
           </section>
+
 
           {/* =================================================
               CANDIDATE RANKING
@@ -875,32 +1203,75 @@ const visibleDriftPath = backwardParticles
           <section className="evidence-panel candidates-panel">
 
             <div className="panel-header">
+
               <div>
+
                 <div className="panel-kicker">
                   04 · CANDIDATE RANKING
                 </div>
 
-                <h2>Vessel Candidates</h2>
+                <h2>
+                  Vessel Candidates
+                </h2>
+
               </div>
 
+
               <span className="candidate-count">
-                {candidates.length}
+                {compatibility?.status ===
+                "blocked"
+                  ? "—"
+                  : candidates.length}
               </span>
+
             </div>
+
 
             <div className="candidate-list">
 
-              {candidates.length === 0 ? (
+              {/* -------------------------------------------
+                  BLOCKED STATE
+              ------------------------------------------- */}
+
+              {compatibility?.status ===
+              "blocked" ? (
+                <div className="ranking-blocked">
+
+                  <strong>
+                    Candidate ranking unavailable
+                  </strong>
+
+                  <span>
+                    Vessel attribution is disabled
+                    because the selected data sources
+                    are not compatible.
+                  </span>
+
+                </div>
+
+              ) : candidates.length === 0 ? (
+
+                /* -----------------------------------------
+                   NO CANDIDATES
+                ----------------------------------------- */
+
                 <div className="empty-state">
                   No compatible vessel candidates
                   available.
                 </div>
+
               ) : (
+
+                /* -----------------------------------------
+                   CANDIDATES
+                ----------------------------------------- */
+
                 candidates.map(
                   (candidate, index) => {
 
                     const score = clamp(
-                      candidate?.attribution_score
+                      candidate
+                        ?.attribution_score
                     );
 
                     const isSelected =
@@ -924,14 +1295,18 @@ const visibleDriftPath = backwardParticles
                           )
                         }
                       >
+
                         <div className="candidate-top">
 
                           <div className="rank">
-                            #{candidate?.rank ??
+                            #
+                            {candidate?.rank ??
                               index + 1}
                           </div>
 
+
                           <div className="candidate-main">
+
                             <strong>
                               {candidate?.vessel_name ||
                                 "Unknown Vessel"}
@@ -940,26 +1315,40 @@ const visibleDriftPath = backwardParticles
                             <span>
                               {candidate?.vessel_type ||
                                 "Unknown Type"}
+
                               {" · "}
+
                               {candidate?.flag ||
                                 "N/A"}
                             </span>
+
                           </div>
+
 
                           <div className="candidate-score">
-                            {formatPercent(score)}
+                            {formatPercent(
+                              score
+                            )}
                           </div>
+
                         </div>
+
 
                         <div className="candidate-progress">
+
                           <div
                             style={{
-                              width: `${score * 100}%`,
+                              width: `${
+                                score * 100
+                              }%`,
                             }}
                           />
+
                         </div>
 
+
                         <div className="candidate-bottom">
+
                           <span>
                             MMSI{" "}
                             {candidate?.mmsi ||
@@ -970,14 +1359,19 @@ const visibleDriftPath = backwardParticles
                             {candidate?.label ||
                               "Candidate"}
                           </span>
+
                         </div>
+
                       </button>
                     );
                   }
                 )
               )}
+
             </div>
+
           </section>
+
 
           {/* =================================================
               SELECTED CANDIDATE EVIDENCE
@@ -987,7 +1381,9 @@ const visibleDriftPath = backwardParticles
             <section className="evidence-panel selected-evidence">
 
               <div className="panel-header">
+
                 <div>
+
                   <div className="panel-kicker">
                     SELECTED CANDIDATE
                   </div>
@@ -995,16 +1391,22 @@ const visibleDriftPath = backwardParticles
                   <h2>
                     {currentCandidate.vessel_name}
                   </h2>
+
                 </div>
+
 
                 <span className="confidence-badge candidate">
                   {formatPercent(
-                    currentCandidate.attribution_score
+                    currentCandidate
+                      .attribution_score
                   )}
                 </span>
+
               </div>
 
+
               <div className="candidate-meta">
+
                 <span>
                   MMSI:{" "}
                   {currentCandidate.mmsi}
@@ -1018,56 +1420,81 @@ const visibleDriftPath = backwardParticles
                   Flag:{" "}
                   {currentCandidate.flag}
                 </span>
+
               </div>
+
 
               <div className="subheading">
                 Why this score?
               </div>
 
+
               <div className="feature-list">
 
                 {Object.entries(
                   currentCandidate.features || {}
-                ).map(([key, value]) => {
+                ).map(
+                  ([key, value]) => {
 
-                  const label = key
-                    .replaceAll("_", " ")
-                    .replace(
-                      /\b\w/g,
-                      (letter) =>
-                        letter.toUpperCase()
-                    );
+                    const label = key
+                      .replaceAll("_", " ")
+                      .replace(
+                        /\b\w/g,
+                        (letter) =>
+                          letter.toUpperCase()
+                      );
 
-                  return (
-                    <div
-                      className="feature-row"
-                      key={key}
-                    >
-                      <span>{label}</span>
+                    return (
+                      <div
+                        className="feature-row"
+                        key={key}
+                      >
 
-                      <div className="feature-score">
-                        <div className="feature-bar">
-                          <div
-                            style={{
-                              width: `${
-                                clamp(value) *
-                                100
-                              }%`,
-                            }}
-                          />
+                        <span>
+                          {label}
+                        </span>
+
+
+                        <div className="feature-score">
+
+                          <div className="feature-bar">
+
+                            <div
+                              style={{
+                                width: `${
+                                  clamp(
+                                    value
+                                  ) * 100
+                                }%`,
+                              }}
+                            />
+
+                          </div>
+
+
+                          <strong>
+                            {formatPercent(
+                              value
+                            )}
+                          </strong>
+
                         </div>
 
-                        <strong>
-                          {formatPercent(value)}
-                        </strong>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  }
+                )}
+
               </div>
 
+
+              {/* -------------------------------------------
+                  EVIDENCE TIMELINE
+              ------------------------------------------- */}
+
               {Array.isArray(
-                currentCandidate.evidence_timeline
+                currentCandidate
+                  .evidence_timeline
               ) &&
                 currentCandidate
                   .evidence_timeline.length >
@@ -1078,49 +1505,61 @@ const visibleDriftPath = backwardParticles
                       Evidence Timeline
                     </div>
 
-                    {currentCandidate.evidence_timeline.map(
-                      (event, index) => (
-                        <div
-                          className={`evidence-event ${
-                            event?.highlight
-                              ? "highlight"
-                              : ""
-                          }`}
-                          key={`${event.time}-${index}`}
-                        >
-                          <div className="event-time">
-                            {event.time}
-                          </div>
 
-                          <div className="event-dot" />
+                    {currentCandidate
+                      .evidence_timeline
+                      .map(
+                        (event, index) => (
+                          <div
+                            className={`evidence-event ${
+                              event?.highlight
+                                ? "highlight"
+                                : ""
+                            }`}
+                            key={`${event?.time}-${index}`}
+                          >
 
-                          <div className="event-label">
-                            {event.label}
+                            <div className="event-time">
+                              {event?.time}
+                            </div>
+
+                            <div className="event-dot" />
+
+                            <div className="event-label">
+                              {event?.label}
+                            </div>
+
                           </div>
-                        </div>
-                      )
-                    )}
+                        )
+                      )}
+
                   </div>
                 )}
+
             </section>
           )}
+
 
           {/* =================================================
               SCIENTIFIC DISCLAIMER
           ================================================= */}
 
           <div className="investigation-disclaimer">
+
             <strong>
               Investigation support only
             </strong>
 
             <span>
-              {spillData?.disclaimers?.attribution ||
+              {spillData?.disclaimers
+                ?.attribution ||
                 "Candidate rankings support investigation and do not constitute legal attribution."}
             </span>
+
           </div>
 
         </aside>
+
       </div>
     </div>
   );
