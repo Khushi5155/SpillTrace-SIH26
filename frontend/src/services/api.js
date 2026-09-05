@@ -38,7 +38,7 @@ const api = axios.create({
  */
 export const checkHealth = async () => {
   try {
-    const response = await api.get("/health");
+    const response = await api.get("/api/v1/health");
 
     return {
       success: true,
@@ -198,12 +198,33 @@ export const getScene = async (sceneId) => {
 
   try {
     const response = await api.get(
-      `/api/v1/scenes/${sceneId}`
+      `/api/v1/scenes/${sceneId}/manifest`
     );
 
     return response.data;
   } catch (error) {
     console.error(`Failed to fetch scene ${sceneId}:`, error);
+    throw error;
+  }
+};
+
+
+export const getSceneCompatibility = async (sceneId) => {
+  if (!sceneId) {
+    throw new Error("Scene ID is required.");
+  }
+
+  try {
+    const response = await api.get(
+      `/api/v1/scenes/${sceneId}/compatibility`
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error(
+      `Failed to fetch compatibility for ${sceneId}:`,
+      error
+    );
 
     throw error;
   }

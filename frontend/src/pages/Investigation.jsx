@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import {
@@ -15,8 +15,14 @@ import "leaflet/dist/leaflet.css";
 
 import spillData from "../data/mockSpillData.json";
 
+import {
+  getScene,
+  getSceneCompatibility,
+} from "../services/api";
+
 import SceneMetadata from "../components/SceneMetadata";
 import CompatibilityStatus from "../components/CompatibilityStatus";
+import DataQualityPanel from "../components/DataQualityPanel";
 
 /* =========================================================
    HELPERS
@@ -40,16 +46,27 @@ const formatArea = (value) =>
 const formatCoordinate = (value) =>
   safeNumber(value).toFixed(3);
 
+const formatUtc = (value) => {
+  if (!value) return "Unavailable";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Unavailable";
+  }
+
+  return date.toUTCString();
+};
+
 
 /* =========================================================
    FALLBACK DEMO SPILL POLYGON
 
-   Current mock JSON contains:
+   The current mock JSON contains:
    polygon_geojson: null
 
-   Therefore this polygon is retained only for the
-   frontend demonstration until Aayush provides the
-   real GeoJSON endpoint.
+   This is retained only for the demo until the backend
+   provides the real spill GeoJSON.
 ========================================================= */
 
 const DEMO_SPILL_POLYGON = [
@@ -79,7 +96,8 @@ export default function Investigation() {
      STATE
   ======================================================= */
 
-  const [selectedCandidate, setSelectedCandidate] = useState(0);
+  const [selectedCandidate, setSelectedCandidate] =
+    useState(0);
 
   const [selectedTimeIndex, setSelectedTimeIndex] =
     useState(0);
@@ -90,6 +108,78 @@ export default function Investigation() {
     drift: true,
     scene: false,
   });
+
+  /* =======================================================
+     DAY 5 — REAL SCENE API STATE
+  ======================================================= */
+
+  const [sceneData, setSceneData] = useState(null);
+
+  const [sceneLoading, setSceneLoading] =
+    useState(true);
+
+  const [sceneError, setSceneError] =
+    useState(null);
+
+  const [sceneCompatibility, setSceneCompatibility] =
+    useState(null);
+
+
+  /* =======================================================
+     DAY 5 — LOAD REAL SCENE DATA
+  ======================================================= */
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadScene = async () => {
+      try {
+        setSceneLoading(true);
+        setSceneError(null);
+
+        const sceneId = "scene_demo_001";
+
+        const manifest =
+          await getScene(sceneId);
+
+        if (!mounted) return;
+
+        setSceneData(manifest);
+
+        const compatibility =
+          await getSceneCompatibility(sceneId);
+
+        if (!mounted) return;
+
+        setSceneCompatibility(
+          compatibility
+        );
+      } catch (error) {
+        console.error(
+          "Scene loading failed:",
+          error
+        );
+
+        if (!mounted) return;
+
+        setSceneError(
+          error?.response?.data?.detail ||
+            error?.message ||
+            "Failed to load scene metadata."
+        );
+      } finally {
+        if (mounted) {
+          setSceneLoading(false);
+        }
+      }
+    };
+
+    loadScene();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
 
   /* =======================================================
@@ -114,16 +204,74 @@ export default function Investigation() {
   const candidates =
     spillData?.vessel_candidates ?? [];
 
-  const compatibility =
-    scenario?.compatibility ?? {
-      status: "blocked",
-      reasons: [
-        "Compatibility information unavailable.",
-      ],
-    };
-
   const backwardParticles =
     origin?.backward_particles ?? [];
+
+
+  /* =======================================================
+     REAL SCENE DATA
+  ======================================================= */
+
+  const realScene =
+    sceneData?.scene ?? null;
+
+  const realManifest =
+    sceneData?.manifest ?? null;
+
+
+  /* =======================================================
+     COMPATIBILITY
+
+     Prefer backend compatibility.
+
+     If backend has not loaded yet, temporarily use the
+     scenario's existing compatibility data.
+
+     IMPORTANT:
+     Current backend returns:
+       compatible: false
+       reasons: ["Compatibility inputs not fully integrated yet"]
+
+     Therefore candidate ranking remains blocked.
+  ======================================================= */
+
+  const backendCompatibility =
+    sceneCompatibility?.compatibility ?? null;
+
+  let compatibility;
+
+  if (backendCompatibility) {
+    compatibility = {
+      status: backendCompatibility.compatible
+        ? "compatible"
+        : "blocked",
+
+      reasons:
+        backendCompatibility.reasons ?? [],
+
+      ...backendCompatibility,
+    };
+  } else if (sceneLoading) {
+    compatibility = {
+      status: "loading",
+      reasons: [],
+    };
+  } else if (sceneError) {
+    compatibility = {
+      status: "blocked",
+      reasons: [
+        "Scene compatibility could not be loaded.",
+      ],
+    };
+  } else {
+    compatibility =
+      scenario?.compatibility ?? {
+        status: "blocked",
+        reasons: [
+          "Compatibility information unavailable.",
+        ],
+      };
+  }
 
 
   /* =======================================================
@@ -171,26 +319,65 @@ export default function Investigation() {
 
   /* =======================================================
      SCENE BOUNDS
+
+     Backend does not currently return bounds.
+
+     If backend later returns:
+       scene.bounds = [minLon, minLat, maxLon, maxLat]
+
+     those real bounds will automatically be used.
+
+     Until then, the existing demo scenario bounds are
+     retained as a clearly marked fallback.
   ======================================================= */
+
+  const backendBounds =
+    realScene?.bounds ??
+    realManifest?.bounds ??
+    realManifest?.scene?.bounds ??
+    null;
+
+  const fallbackBounds =
+    sar?.bounds ?? null;
+
+  const activeSceneBounds =
+    Array.isArray(backendBounds) &&
+    backendBounds.length === 4
+      ? backendBounds
+      : Array.isArray(fallbackBounds) &&
+          fallbackBounds.length === 4
+        ? fallbackBounds
+        : null;
 
   let sceneBounds = null;
 
   if (
-    Array.isArray(sar?.bounds) &&
-    sar.bounds.length === 4
+    Array.isArray(activeSceneBounds) &&
+    activeSceneBounds.length === 4
   ) {
     const [
       minLon,
       minLat,
       maxLon,
       maxLat,
-    ] = sar.bounds;
+    ] = activeSceneBounds.map(Number);
 
-    sceneBounds = [
-      [minLat, minLon],
-      [maxLat, maxLon],
-    ];
+    if (
+      Number.isFinite(minLon) &&
+      Number.isFinite(minLat) &&
+      Number.isFinite(maxLon) &&
+      Number.isFinite(maxLat)
+    ) {
+      sceneBounds = [
+        [minLat, minLon],
+        [maxLat, maxLon],
+      ];
+    }
   }
+
+  const sceneBoundsAreReal =
+    Array.isArray(backendBounds) &&
+    backendBounds.length === 4;
 
 
   /* =======================================================
@@ -200,8 +387,12 @@ export default function Investigation() {
   const driftPath = backwardParticles
     .filter(
       (point) =>
-        Number.isFinite(Number(point?.lat)) &&
-        Number.isFinite(Number(point?.lon))
+        Number.isFinite(
+          Number(point?.lat)
+        ) &&
+        Number.isFinite(
+          Number(point?.lon)
+        )
     )
     .map((point) => [
       safeNumber(point.lat),
@@ -244,6 +435,7 @@ export default function Investigation() {
   const visibleDriftPath =
     backwardParticles
       .slice(selectedTimeIndex)
+      .filter(Boolean)
       .map((point) => [
         safeNumber(point?.lat),
         safeNumber(point?.lon),
@@ -252,12 +444,17 @@ export default function Investigation() {
 
   /* =======================================================
      SELECTED CANDIDATE
+
+     Never expose candidate ranking when backend says
+     compatibility is blocked.
   ======================================================= */
 
   const currentCandidate =
-    compatibility?.status === "blocked"
+    compatibility?.status === "blocked" ||
+    compatibility?.compatible === false
       ? null
-      : candidates[selectedCandidate] ?? null;
+      : candidates[selectedCandidate] ??
+        null;
 
 
   /* =======================================================
@@ -285,12 +482,12 @@ export default function Investigation() {
 
   /* =======================================================
      SPILL POLYGON
-
-     Real polygon_geojson will come from backend later.
   ======================================================= */
 
   const spillPolygon =
-    Array.isArray(spill?.polygon_geojson) &&
+    Array.isArray(
+      spill?.polygon_geojson
+    ) &&
     spill.polygon_geojson.length > 0
       ? spill.polygon_geojson
       : DEMO_SPILL_POLYGON;
@@ -298,12 +495,13 @@ export default function Investigation() {
 
   /* =======================================================
      CANDIDATE RANKING ACTION
-
-     Actual ranking endpoint will be connected later.
   ======================================================= */
 
   const handleRankCandidates = () => {
-    if (compatibility?.status === "blocked") {
+    if (
+      compatibility?.status === "blocked" ||
+      compatibility?.compatible === false
+    ) {
       return;
     }
 
@@ -313,9 +511,9 @@ export default function Investigation() {
   };
 
 
-  /* =========================================================
+  /* =======================================================
      RENDER
-  ========================================================= */
+  ======================================================= */
 
   return (
     <div className="investigation-page">
@@ -370,22 +568,71 @@ export default function Investigation() {
 
 
       {/* ===================================================
-          DAY 4 — SCENE METADATA
+          DAY 5 — SCENE LOADING STATE
       =================================================== */}
 
-      <SceneMetadata
-        investigation={spillData}
-      />
+      {sceneLoading && (
+        <div className="warning-box">
+          <strong>
+            Loading scene metadata…
+          </strong>
+
+          <span>
+            Fetching Sentinel-1 scene information
+            from the backend.
+          </span>
+        </div>
+      )}
 
 
       {/* ===================================================
-          DAY 4 — COMPATIBILITY STATUS
+          DAY 5 — SCENE ERROR STATE
       =================================================== */}
 
-      <CompatibilityStatus
-        compatibility={compatibility}
-        onRankCandidates={handleRankCandidates}
-      />
+      {!sceneLoading && sceneError && (
+        <div className="warning-box">
+          <strong>
+            Scene metadata unavailable
+          </strong>
+
+          <span>
+            {sceneError}
+          </span>
+        </div>
+      )}
+
+
+      {/* ===================================================
+          DAY 5 — REAL SCENE METADATA
+      =================================================== */}
+
+      {!sceneLoading && (
+        <SceneMetadata
+          investigation={spillData}
+          scene={realScene}
+          manifest={realManifest}
+        />
+      )}
+
+
+      {/* ===================================================
+          DAY 4 / DAY 5 — COMPATIBILITY
+      =================================================== */}
+
+      {!sceneLoading && (
+        bilityStatus
+          compatibility={compatibility}
+          onRankCandidates={
+            handleRankCandidates
+          }
+        />
+      )}
+
+      <DataQualityPanel
+  compatibility={
+    sceneCompatibility?.compatibility
+  }
+/>
 
 
       {/* ===================================================
@@ -489,6 +736,7 @@ export default function Investigation() {
                 }}
               >
                 <Popup>
+
                   <strong>
                     Detected Spill Centroid
                   </strong>
@@ -506,6 +754,7 @@ export default function Investigation() {
                   {formatCoordinate(
                     spillLon
                   )}
+
                 </Popup>
               </CircleMarker>
             )}
@@ -530,6 +779,7 @@ export default function Investigation() {
                 }}
               >
                 <Popup>
+
                   <strong>
                     Estimated Spill Origin
                   </strong>
@@ -554,6 +804,7 @@ export default function Investigation() {
                   {formatPercent(
                     origin?.confidence
                   )}
+
                 </Popup>
               </CircleMarker>
             )}
@@ -746,6 +997,28 @@ export default function Investigation() {
             </span>
 
           </div>
+
+
+          {/* =================================================
+              SCENE BOUNDS DATA STATUS
+          ================================================= */}
+
+          {layers.scene && !sceneBounds && (
+            <div className="empty-state">
+              SAR scene bounds are not available
+              from the backend yet.
+            </div>
+          )}
+
+          {layers.scene &&
+            sceneBounds &&
+            !sceneBoundsAreReal && (
+              <div className="empty-state">
+                Showing demo SAR scene bounds.
+                Backend scene bounds are not
+                available yet.
+              </div>
+            )}
 
         </section>
 
@@ -962,19 +1235,15 @@ export default function Investigation() {
               </span>
 
               <strong>
-                {origin?.estimated_window_start
-                  ? new Date(
-                      origin.estimated_window_start
-                    ).toUTCString()
-                  : "Unavailable"}
+                {formatUtc(
+                  origin?.estimated_window_start
+                )}
               </strong>
 
               <strong>
-                {origin?.estimated_window_end
-                  ? new Date(
-                      origin.estimated_window_end
-                    ).toUTCString()
-                  : "Unavailable"}
+                {formatUtc(
+                  origin?.estimated_window_end
+                )}
               </strong>
 
             </div>
@@ -1219,7 +1488,9 @@ export default function Investigation() {
 
               <span className="candidate-count">
                 {compatibility?.status ===
-                "blocked"
+                    "blocked" ||
+                compatibility?.compatible ===
+                    false
                   ? "—"
                   : candidates.length}
               </span>
@@ -1230,11 +1501,22 @@ export default function Investigation() {
             <div className="candidate-list">
 
               {/* -------------------------------------------
-                  BLOCKED STATE
+                  LOADING
               ------------------------------------------- */}
 
-              {compatibility?.status ===
-              "blocked" ? (
+              {sceneLoading ? (
+                <div className="empty-state">
+                  Waiting for scene compatibility…
+                </div>
+              ) : compatibility?.status ===
+                  "blocked" ||
+                compatibility?.compatible ===
+                  false ? (
+
+                /* -----------------------------------------
+                   BLOCKED
+                ----------------------------------------- */
+
                 <div className="ranking-blocked">
 
                   <strong>
@@ -1244,8 +1526,26 @@ export default function Investigation() {
                   <span>
                     Vessel attribution is disabled
                     because the selected data sources
-                    are not compatible.
+                    are not currently compatible.
                   </span>
+
+                  {Array.isArray(
+                    compatibility?.reasons
+                  ) &&
+                    compatibility.reasons.length >
+                      0 && (
+                      <ul>
+                        {compatibility.reasons.map(
+                          (reason, index) => (
+                            <li
+                              key={`${reason}-${index}`}
+                            >
+                              {reason}
+                            </li>
+                          )
+                        )}
+                      </ul>
+                    )}
 
                 </div>
 
