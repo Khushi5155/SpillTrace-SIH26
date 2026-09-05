@@ -106,9 +106,15 @@ def process_sar_scene(file_path: str = IMAGE_PATH, scene_id: str = "test1_scene"
         raw_bands = src.read()
 
     # Inject dummy Seattle GPS coordinates if spatial metadata is missing
+    # Inject dynamic GPS coordinates based on the scene_id
     if transform.is_identity or crs is None:
-        print("Warning: No spatial metadata found. Injecting Seattle dummy coordinates...")
-        transform = from_origin(-122.40506, 47.68588, 0.0001, 0.0001)
+        if "TEST3" in scene_id.upper():
+            print(f"Warning: No metadata. Scene {scene_id} detected. Injecting Arabian Sea coordinates...")
+            transform = from_origin(70.5, 19.5, 0.0001, 0.0001)
+        else:
+            print(f"Warning: No metadata. Scene {scene_id} detected. Injecting Seattle AIS coordinates...")
+            transform = from_origin(-122.40506, 47.68588, 0.0001, 0.0001)
+            
         crs = "EPSG:4326"
         meta.update({"transform": transform, "crs": crs})
 

@@ -8,9 +8,9 @@ import geopandas as gpd
 from shapely.geometry import shape
 
 # --- CONFIGURATION ---
-SAR_PATH = "test3.tiff"
+SAR_PATH = "test1.tiff"
 CLEAN_MASK_PATH = "day3_outputs/post_cleanup_mask_final.png"
-PROB_PATH = "output_results/test3_pytorch_prob.tif"
+PROB_PATH = "day1_output_results/test1_scene_pytorch_prob.tif"
 DAY4_DIR = "day4_outputs"
 os.makedirs(DAY4_DIR, exist_ok=True)
 
