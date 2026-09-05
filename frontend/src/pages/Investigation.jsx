@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import {
@@ -30,7 +30,6 @@ import DataQualityPanel from "../components/DataQualityPanel";
 
 const safeNumber = (value, fallback = 0) => {
   const number = Number(value);
-
   return Number.isFinite(number) ? number : fallback;
 };
 
@@ -60,13 +59,10 @@ const formatUtc = (value) => {
 
 
 /* =========================================================
-   FALLBACK DEMO SPILL POLYGON
+   DEMO FALLBACK SPILL POLYGON
 
-   The current mock JSON contains:
-   polygon_geojson: null
-
-   This is retained only for the demo until the backend
-   provides the real spill GeoJSON.
+   Temporary fallback until backend provides real
+   spill geometry.
 ========================================================= */
 
 const DEMO_SPILL_POLYGON = [
@@ -93,14 +89,12 @@ export default function Investigation() {
   const navigate = useNavigate();
 
   /* =======================================================
-     STATE
+     UI STATE
   ======================================================= */
 
-  const [selectedCandidate, setSelectedCandidate] =
-    useState(0);
+  const [selectedCandidate, setSelectedCandidate] = useState(0);
 
-  const [selectedTimeIndex, setSelectedTimeIndex] =
-    useState(0);
+  const [selectedTimeIndex, setSelectedTimeIndex] = useState(0);
 
   const [layers, setLayers] = useState({
     spill: true,
@@ -109,51 +103,57 @@ export default function Investigation() {
     scene: false,
   });
 
+
   /* =======================================================
      DAY 5 — REAL SCENE API STATE
   ======================================================= */
 
   const [sceneData, setSceneData] = useState(null);
 
-  const [sceneLoading, setSceneLoading] =
-    useState(true);
+  const [sceneLoading, setSceneLoading] = useState(true);
 
-  const [sceneError, setSceneError] =
-    useState(null);
+  const [sceneError, setSceneError] = useState(null);
 
   const [sceneCompatibility, setSceneCompatibility] =
     useState(null);
 
 
   /* =======================================================
-     DAY 5 — LOAD REAL SCENE DATA
+     LOAD REAL SCENE + COMPATIBILITY
   ======================================================= */
 
   useEffect(() => {
     let mounted = true;
 
     const loadScene = async () => {
+      const sceneId = "scene_demo_001";
+
       try {
         setSceneLoading(true);
         setSceneError(null);
+        setSceneData(null);
+        setSceneCompatibility(null);
 
-        const sceneId = "scene_demo_001";
+        /* -----------------------------------------------
+           1. Load scene manifest
+        ------------------------------------------------ */
 
-        const manifest =
-          await getScene(sceneId);
+        const manifest = await getScene(sceneId);
 
         if (!mounted) return;
 
         setSceneData(manifest);
+
+        /* -----------------------------------------------
+           2. Load compatibility
+        ------------------------------------------------ */
 
         const compatibility =
           await getSceneCompatibility(sceneId);
 
         if (!mounted) return;
 
-        setSceneCompatibility(
-          compatibility
-        );
+        setSceneCompatibility(compatibility);
       } catch (error) {
         console.error(
           "Scene loading failed:",
@@ -162,11 +162,13 @@ export default function Investigation() {
 
         if (!mounted) return;
 
-        setSceneError(
+        const message =
           error?.response?.data?.detail ||
-            error?.message ||
-            "Failed to load scene metadata."
-        );
+          error?.response?.data?.message ||
+          error?.message ||
+          "Failed to load scene metadata.";
+
+        setSceneError(message);
       } finally {
         if (mounted) {
           setSceneLoading(false);
@@ -183,7 +185,10 @@ export default function Investigation() {
 
 
   /* =======================================================
-     DATA
+     MOCK INVESTIGATION DATA
+
+     These remain only where the real backend data is not
+     available yet.
   ======================================================= */
 
   const investigation =
@@ -220,19 +225,24 @@ export default function Investigation() {
 
 
   /* =======================================================
+     EMPTY SCENE STATE
+
+     Successful API response but no scene metadata.
+  ======================================================= */
+
+  const sceneIsEmpty =
+    !sceneLoading &&
+    !sceneError &&
+    !realScene;
+
+
+  /* =======================================================
      COMPATIBILITY
 
-     Prefer backend compatibility.
+     Backend compatibility is always preferred.
 
-     If backend has not loaded yet, temporarily use the
-     scenario's existing compatibility data.
-
-     IMPORTANT:
-     Current backend returns:
-       compatible: false
-       reasons: ["Compatibility inputs not fully integrated yet"]
-
-     Therefore candidate ranking remains blocked.
+     Candidate ranking is blocked when backend returns
+     compatible:false.
   ======================================================= */
 
   const backendCompatibility =
@@ -242,31 +252,34 @@ export default function Investigation() {
 
   if (backendCompatibility) {
     compatibility = {
+      ...backendCompatibility,
+
       status: backendCompatibility.compatible
         ? "compatible"
         : "blocked",
 
       reasons:
         backendCompatibility.reasons ?? [],
-
-      ...backendCompatibility,
     };
   } else if (sceneLoading) {
     compatibility = {
       status: "loading",
       reasons: [],
     };
-  } else if (sceneError) {
+  } else if (sceneError || sceneIsEmpty) {
     compatibility = {
       status: "blocked",
+
       reasons: [
-        "Scene compatibility could not be loaded.",
+        sceneError ||
+          "Scene compatibility is unavailable.",
       ],
     };
   } else {
     compatibility =
       scenario?.compatibility ?? {
         status: "blocked",
+
         reasons: [
           "Compatibility information unavailable.",
         ],
@@ -310,26 +323,20 @@ export default function Investigation() {
 
 
   /* =======================================================
-     SAR SCENE
+     SAR SCENE BOUNDS
+
+     Backend-first.
+
+     Expected future backend format:
+
+     bounds: [minLon, minLat, maxLon, maxLat]
+
+     Until backend supplies bounds, use the existing
+     demo scenario bounds and label them as demo.
   ======================================================= */
 
   const sar =
     scenario?.sar ?? {};
-
-
-  /* =======================================================
-     SCENE BOUNDS
-
-     Backend does not currently return bounds.
-
-     If backend later returns:
-       scene.bounds = [minLon, minLat, maxLon, maxLat]
-
-     those real bounds will automatically be used.
-
-     Until then, the existing demo scenario bounds are
-     retained as a clearly marked fallback.
-  ======================================================= */
 
   const backendBounds =
     realScene?.bounds ??
@@ -366,7 +373,9 @@ export default function Investigation() {
       Number.isFinite(minLon) &&
       Number.isFinite(minLat) &&
       Number.isFinite(maxLon) &&
-      Number.isFinite(maxLat)
+      Number.isFinite(maxLat) &&
+      minLon <= maxLon &&
+      minLat <= maxLat
     ) {
       sceneBounds = [
         [minLat, minLon],
@@ -387,12 +396,8 @@ export default function Investigation() {
   const driftPath = backwardParticles
     .filter(
       (point) =>
-        Number.isFinite(
-          Number(point?.lat)
-        ) &&
-        Number.isFinite(
-          Number(point?.lon)
-        )
+        Number.isFinite(Number(point?.lat)) &&
+        Number.isFinite(Number(point?.lon))
     )
     .map((point) => [
       safeNumber(point.lat),
@@ -443,18 +448,31 @@ export default function Investigation() {
 
 
   /* =======================================================
+     SPILL POLYGON
+  ======================================================= */
+
+  const spillPolygon =
+    Array.isArray(spill?.polygon_geojson) &&
+    spill.polygon_geojson.length > 0
+      ? spill.polygon_geojson
+      : DEMO_SPILL_POLYGON;
+
+
+  /* =======================================================
      SELECTED CANDIDATE
 
-     Never expose candidate ranking when backend says
+     Never expose candidate ranking when attribution
      compatibility is blocked.
   ======================================================= */
 
-  const currentCandidate =
+  const attributionBlocked =
     compatibility?.status === "blocked" ||
-    compatibility?.compatible === false
+    compatibility?.compatible === false;
+
+  const currentCandidate =
+    attributionBlocked
       ? null
-      : candidates[selectedCandidate] ??
-        null;
+      : candidates[selectedCandidate] ?? null;
 
 
   /* =======================================================
@@ -481,27 +499,16 @@ export default function Investigation() {
 
 
   /* =======================================================
-     SPILL POLYGON
-  ======================================================= */
-
-  const spillPolygon =
-    Array.isArray(
-      spill?.polygon_geojson
-    ) &&
-    spill.polygon_geojson.length > 0
-      ? spill.polygon_geojson
-      : DEMO_SPILL_POLYGON;
-
-
-  /* =======================================================
      CANDIDATE RANKING ACTION
+
+     Real backend ranking will be connected on Day 7.
+
+     For now, only allow the action when compatibility
+     passes.
   ======================================================= */
 
   const handleRankCandidates = () => {
-    if (
-      compatibility?.status === "blocked" ||
-      compatibility?.compatible === false
-    ) {
+    if (attributionBlocked) {
       return;
     }
 
@@ -519,7 +526,7 @@ export default function Investigation() {
     <div className="investigation-page">
 
       {/* ===================================================
-          PAGE HEADER
+          HEADER
       =================================================== */}
 
       <div className="investigation-header">
@@ -557,6 +564,7 @@ export default function Investigation() {
           </div>
 
           <button
+            type="button"
             className="secondary-button"
             onClick={() => navigate("/")}
           >
@@ -564,33 +572,43 @@ export default function Investigation() {
           </button>
 
         </div>
+
       </div>
 
 
       {/* ===================================================
-          DAY 5 — SCENE LOADING STATE
+          DAY 5 — LOADING STATE
       =================================================== */}
 
       {sceneLoading && (
-        <div className="warning-box">
-          <strong>
-            Loading scene metadata…
-          </strong>
+        <div className="scene-loading-state">
 
-          <span>
-            Fetching Sentinel-1 scene information
-            from the backend.
-          </span>
+          <div className="scene-loading-spinner" />
+
+          <div className="scene-loading-text">
+
+            <strong>
+              Loading scene metadata…
+            </strong>
+
+            <span>
+              Fetching Sentinel-1 scene information
+              from the backend.
+            </span>
+
+          </div>
+
         </div>
       )}
 
 
       {/* ===================================================
-          DAY 5 — SCENE ERROR STATE
+          DAY 5 — ERROR STATE
       =================================================== */}
 
       {!sceneLoading && sceneError && (
         <div className="warning-box">
+
           <strong>
             Scene metadata unavailable
           </strong>
@@ -598,15 +616,36 @@ export default function Investigation() {
           <span>
             {sceneError}
           </span>
+
         </div>
       )}
 
 
       {/* ===================================================
-          DAY 5 — REAL SCENE METADATA
+          DAY 5 — EMPTY STATE
       =================================================== */}
 
-      {!sceneLoading && (
+      {sceneIsEmpty && (
+        <div className="empty-state">
+
+          <strong>
+            No scene metadata available
+          </strong>
+
+          <span>
+            The selected SAR scene returned no metadata
+            from the backend.
+          </span>
+
+        </div>
+      )}
+
+
+      {/* ===================================================
+          REAL SCENE METADATA
+      =================================================== */}
+
+      {!sceneLoading && !sceneIsEmpty && (
         <SceneMetadata
           investigation={spillData}
           scene={realScene}
@@ -616,23 +655,28 @@ export default function Investigation() {
 
 
       {/* ===================================================
-          DAY 4 / DAY 5 — COMPATIBILITY
+          COMPATIBILITY STATUS
       =================================================== */}
 
-      {!sceneLoading && (
-        bilityStatus
+      {!sceneLoading && !sceneIsEmpty && (
+        <CompatibilityStatus
           compatibility={compatibility}
-          onRankCandidates={
-            handleRankCandidates
-          }
+          onRankCandidates={handleRankCandidates}
         />
       )}
 
-      <DataQualityPanel
-  compatibility={
-    sceneCompatibility?.compatibility
-  }
-/>
+
+      {/* ===================================================
+          DATA QUALITY
+      =================================================== */}
+
+      {!sceneLoading && !sceneIsEmpty && (
+        <DataQualityPanel
+          compatibility={
+            sceneCompatibility?.compatibility
+          }
+        />
+      )}
 
 
       {/* ===================================================
@@ -694,7 +738,9 @@ export default function Investigation() {
                     fillOpacity: 0.32,
                   }}
                 >
+
                   <Popup>
+
                     <strong>
                       Detected Oil Spill
                     </strong>
@@ -712,7 +758,9 @@ export default function Investigation() {
                     {formatPercent(
                       spill?.detection_confidence
                     )}
+
                   </Popup>
+
                 </Polygon>
               )}
 
@@ -735,6 +783,7 @@ export default function Investigation() {
                   fillOpacity: 1,
                 }}
               >
+
                 <Popup>
 
                   <strong>
@@ -756,6 +805,7 @@ export default function Investigation() {
                   )}
 
                 </Popup>
+
               </CircleMarker>
             )}
 
@@ -778,6 +828,7 @@ export default function Investigation() {
                   fillOpacity: 1,
                 }}
               >
+
                 <Popup>
 
                   <strong>
@@ -806,6 +857,7 @@ export default function Investigation() {
                   )}
 
                 </Popup>
+
               </CircleMarker>
             )}
 
@@ -864,6 +916,7 @@ export default function Investigation() {
                     fillOpacity: 1,
                   }}
                 >
+
                   <Popup>
 
                     <strong>
@@ -893,6 +946,7 @@ export default function Investigation() {
                     )}
 
                   </Popup>
+
                 </CircleMarker>
               )}
 
@@ -911,6 +965,7 @@ export default function Investigation() {
 
 
             <button
+              type="button"
               className={`legend-row ${
                 layers.spill
                   ? "active"
@@ -925,10 +980,12 @@ export default function Investigation() {
               <span>
                 Detected Spill
               </span>
+
             </button>
 
 
             <button
+              type="button"
               className={`legend-row ${
                 layers.origin
                   ? "active"
@@ -943,10 +1000,12 @@ export default function Investigation() {
               <span>
                 Estimated Origin
               </span>
+
             </button>
 
 
             <button
+              type="button"
               className={`legend-row ${
                 layers.drift
                   ? "active"
@@ -961,10 +1020,12 @@ export default function Investigation() {
               <span>
                 Backward Drift
               </span>
+
             </button>
 
 
             <button
+              type="button"
               className={`legend-row ${
                 layers.scene
                   ? "active"
@@ -979,6 +1040,7 @@ export default function Investigation() {
               <span>
                 SAR Scene Bounds
               </span>
+
             </button>
 
           </div>
@@ -1000,23 +1062,29 @@ export default function Investigation() {
 
 
           {/* =================================================
-              SCENE BOUNDS DATA STATUS
+              SCENE BOUNDS STATUS
           ================================================= */}
 
-          {layers.scene && !sceneBounds && (
-            <div className="empty-state">
-              SAR scene bounds are not available
-              from the backend yet.
-            </div>
-          )}
+          {layers.scene &&
+            !sceneBounds && (
+              <div className="empty-state">
+
+                SAR scene bounds are not available
+                from the backend yet.
+
+              </div>
+            )}
+
 
           {layers.scene &&
             sceneBounds &&
             !sceneBoundsAreReal && (
               <div className="empty-state">
+
                 Showing demo SAR scene bounds.
                 Backend scene bounds are not
                 available yet.
+
               </div>
             )}
 
@@ -1031,7 +1099,7 @@ export default function Investigation() {
 
 
           {/* =================================================
-              DETECTION SUMMARY
+              01 — DETECTION
           ================================================= */}
 
           <section className="evidence-panel">
@@ -1163,7 +1231,7 @@ export default function Investigation() {
 
 
           {/* =================================================
-              ORIGIN RECONSTRUCTION
+              02 — ORIGIN
           ================================================= */}
 
           <section className="evidence-panel">
@@ -1252,7 +1320,10 @@ export default function Investigation() {
 
 
           {/* =================================================
-              AIS SUMMARY
+              03 — AIS SUMMARY
+
+              Still using demo AIS summary until the real
+              AIS endpoint is available.
           ================================================= */}
 
           <section className="evidence-panel">
@@ -1325,8 +1396,7 @@ export default function Investigation() {
             </div>
 
 
-            {ais?.data_quality
-              ?.gap_detected && (
+            {ais?.data_quality?.gap_detected && (
               <div className="warning-box">
 
                 <strong>
@@ -1334,9 +1404,8 @@ export default function Investigation() {
                 </strong>
 
                 <span>
-                  {ais?.data_quality
-                    ?.gap_note ||
-                    "Simulation partially compensates."}
+                  {ais?.data_quality?.gap_note ||
+                    "AIS coverage contains a data gap."}
                 </span>
 
               </div>
@@ -1409,10 +1478,10 @@ export default function Investigation() {
                   {backwardParticles.map(
                     (point, index) => (
                       <button
+                        type="button"
                         key={`${point?.t_offset_hours}-${index}`}
                         className={
-                          index ===
-                          selectedTimeIndex
+                          index === selectedTimeIndex
                             ? "timeline-label active"
                             : "timeline-label"
                         }
@@ -1466,7 +1535,7 @@ export default function Investigation() {
 
 
           {/* =================================================
-              CANDIDATE RANKING
+              04 — CANDIDATE RANKING
           ================================================= */}
 
           <section className="evidence-panel candidates-panel">
@@ -1487,10 +1556,7 @@ export default function Investigation() {
 
 
               <span className="candidate-count">
-                {compatibility?.status ===
-                    "blocked" ||
-                compatibility?.compatible ===
-                    false
+                {attributionBlocked
                   ? "—"
                   : candidates.length}
               </span>
@@ -1508,10 +1574,7 @@ export default function Investigation() {
                 <div className="empty-state">
                   Waiting for scene compatibility…
                 </div>
-              ) : compatibility?.status ===
-                  "blocked" ||
-                compatibility?.compatible ===
-                  false ? (
+              ) : attributionBlocked ? (
 
                 /* -----------------------------------------
                    BLOCKED
@@ -1532,8 +1595,7 @@ export default function Investigation() {
                   {Array.isArray(
                     compatibility?.reasons
                   ) &&
-                    compatibility.reasons.length >
-                      0 && (
+                    compatibility.reasons.length > 0 && (
                       <ul>
                         {compatibility.reasons.map(
                           (reason, index) => (
@@ -1552,7 +1614,7 @@ export default function Investigation() {
               ) : candidates.length === 0 ? (
 
                 /* -----------------------------------------
-                   NO CANDIDATES
+                   EMPTY
                 ----------------------------------------- */
 
                 <div className="empty-state">
@@ -1570,16 +1632,15 @@ export default function Investigation() {
                   (candidate, index) => {
 
                     const score = clamp(
-                      candidate
-                        ?.attribution_score
+                      candidate?.attribution_score
                     );
 
                     const isSelected =
-                      index ===
-                      selectedCandidate;
+                      index === selectedCandidate;
 
                     return (
                       <button
+                        type="button"
                         key={
                           candidate?.mmsi ||
                           index
@@ -1626,9 +1687,7 @@ export default function Investigation() {
 
 
                           <div className="candidate-score">
-                            {formatPercent(
-                              score
-                            )}
+                            {formatPercent(score)}
                           </div>
 
                         </div>
@@ -1697,8 +1756,7 @@ export default function Investigation() {
 
                 <span className="confidence-badge candidate">
                   {formatPercent(
-                    currentCandidate
-                      .attribution_score
+                    currentCandidate.attribution_score
                   )}
                 </span>
 
@@ -1773,9 +1831,7 @@ export default function Investigation() {
 
 
                           <strong>
-                            {formatPercent(
-                              value
-                            )}
+                            {formatPercent(value)}
                           </strong>
 
                         </div>
@@ -1793,11 +1849,9 @@ export default function Investigation() {
               ------------------------------------------- */}
 
               {Array.isArray(
-                currentCandidate
-                  .evidence_timeline
+                currentCandidate.evidence_timeline
               ) &&
-                currentCandidate
-                  .evidence_timeline.length >
+                currentCandidate.evidence_timeline.length >
                   0 && (
                   <div className="candidate-timeline">
 
@@ -1806,32 +1860,30 @@ export default function Investigation() {
                     </div>
 
 
-                    {currentCandidate
-                      .evidence_timeline
-                      .map(
-                        (event, index) => (
-                          <div
-                            className={`evidence-event ${
-                              event?.highlight
-                                ? "highlight"
-                                : ""
-                            }`}
-                            key={`${event?.time}-${index}`}
-                          >
+                    {currentCandidate.evidence_timeline.map(
+                      (event, index) => (
+                        <div
+                          className={`evidence-event ${
+                            event?.highlight
+                              ? "highlight"
+                              : ""
+                          }`}
+                          key={`${event?.time}-${index}`}
+                        >
 
-                            <div className="event-time">
-                              {event?.time}
-                            </div>
-
-                            <div className="event-dot" />
-
-                            <div className="event-label">
-                              {event?.label}
-                            </div>
-
+                          <div className="event-time">
+                            {event?.time}
                           </div>
-                        )
-                      )}
+
+                          <div className="event-dot" />
+
+                          <div className="event-label">
+                            {event?.label}
+                          </div>
+
+                        </div>
+                      )
+                    )}
 
                   </div>
                 )}
@@ -1851,8 +1903,7 @@ export default function Investigation() {
             </strong>
 
             <span>
-              {spillData?.disclaimers
-                ?.attribution ||
+              {spillData?.disclaimers?.attribution ||
                 "Candidate rankings support investigation and do not constitute legal attribution."}
             </span>
 

@@ -1,5 +1,7 @@
+import React, { useState } from "react";
+
 function DataQualityPanel({ compatibility }) {
-  const [isOpen, setIsOpen] = React.useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   const data = compatibility ?? {};
 
