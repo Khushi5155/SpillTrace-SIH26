@@ -4,6 +4,7 @@ from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
+from typing import Optional
 
 CLASS_MAPPING = {
     "0": "sea_surface",
@@ -19,9 +20,9 @@ class JobStatus(str, Enum):
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
 
-class DetectionRequest(BaseModel):
-    scene_id: str = Field(..., min_length=1)
-    file_path: str = Field(..., min_length=1)
+class DetectionOptions(BaseModel):
+    threshold: Optional[float] = None
+    use_fallback: bool = True
 
 class ArtifactRefs(BaseModel):
     oil_mask: str | None = None
