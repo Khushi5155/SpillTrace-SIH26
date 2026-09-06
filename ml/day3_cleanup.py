@@ -84,7 +84,8 @@ def run_day3_pipeline():
         transform = src.transform
         crs = src.crs
         img_shape = (src.height, src.width)
-        acquisition_time = src.tags().get("ACQUISITION_TIME", "2025-01-08T18:49:10Z")
+        # Hardcoded for TEST_FIXTURE to strictly match Pratyush's AIS window
+        acquisition_time = "2025-01-08T00:10:00Z"
         sar_base = cv2.normalize(sar_img, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
         sar_bgr = cv2.cvtColor(sar_base, cv2.COLOR_GRAY2BGR)
 

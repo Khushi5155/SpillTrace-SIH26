@@ -1,0 +1,38 @@
+                                                                                                                                                                  QUERY PLAN                                                                                                                                                                   
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=688.90..688.93 rows=13 width=128) (actual time=3.643..3.648 rows=73 loops=1)
+   Sort Key: ((count(*))::integer) DESC, filtered_positions.mmsi
+   Sort Method: quicksort  Memory: 86kB
+   Buffers: shared hit=238
+   CTE filtered_positions
+     ->  Seq Scan on ais_positions a  (cost=0.00..481.43 rows=39 width=126) (actual time=0.010..1.135 rows=228 loops=1)
+           Filter: ((observed_at >= '2025-01-08 00:00:00+00'::timestamp with time zone) AND (observed_at <= '2025-01-08 00:10:00+00'::timestamp with time zone) AND (longitude >= '-90.1'::double precision) AND (longitude <= '-89.9'::double precision) AND (latitude >= '29.7'::double precision) AND (latitude <= '30'::double precision))
+           Rows Removed by Filter: 9749
+           Buffers: shared hit=232
+   ->  Merge Join  (cost=3.62..207.23 rows=13 width=128) (actual time=1.624..3.577 rows=73 loops=1)
+         Merge Cond: (filtered_positions.mmsi = filtered_positions_1.mmsi)
+         Buffers: shared hit=235
+         ->  GroupAggregate  (cost=1.81..32.13 rows=39 width=72) (actual time=1.528..3.109 rows=126 loops=1)
+               Group Key: filtered_positions.mmsi
+               Buffers: shared hit=235
+               ->  Sort  (cost=1.81..1.91 rows=39 width=128) (actual time=1.386..1.398 rows=228 loops=1)
+                     Sort Key: filtered_positions.mmsi, filtered_positions.observed_at
+                     Sort Method: quicksort  Memory: 58kB
+                     Buffers: shared hit=235
+                     ->  CTE Scan on filtered_positions  (cost=0.00..0.78 rows=39 width=128) (actual time=0.013..1.308 rows=228 loops=1)
+                           Buffers: shared hit=232
+         ->  GroupAggregate  (cost=1.81..4.02 rows=13 width=64) (actual time=0.073..0.267 rows=73 loops=1)
+               Group Key: filtered_positions_1.mmsi
+               Filter: ((count(*))::integer >= 2)
+               Rows Removed by Filter: 54
+               ->  WindowAgg  (cost=1.81..2.59 rows=39 width=24) (actual time=0.063..0.174 rows=228 loops=1)
+                     ->  Sort  (cost=1.81..1.91 rows=39 width=16) (actual time=0.058..0.068 rows=228 loops=1)
+                           Sort Key: filtered_positions_1.mmsi, filtered_positions_1.observed_at
+                           Sort Method: quicksort  Memory: 33kB
+                           ->  CTE Scan on filtered_positions filtered_positions_1  (cost=0.00..0.78 rows=39 width=16) (actual time=0.001..0.019 rows=228 loops=1)
+ Planning:
+   Buffers: shared hit=294
+ Planning Time: 1.543 ms
+ Execution Time: 11.453 ms
+(34 rows)
+

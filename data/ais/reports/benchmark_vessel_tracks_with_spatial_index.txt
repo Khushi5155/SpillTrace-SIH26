@@ -1,0 +1,39 @@
+                                                                                                                                                                                                                                        QUERY PLAN                                                                                                                                                                                                                                         
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=34.74..34.74 rows=1 width=128) (actual time=26.813..26.818 rows=73 loops=1)
+   Sort Key: ((count(*))::integer) DESC, filtered_positions.mmsi
+   Sort Method: quicksort  Memory: 86kB
+   Buffers: shared hit=150
+   CTE filtered_positions
+     ->  Index Scan using idx_ais_positions_position_gist on ais_positions a  (cost=0.15..20.67 rows=1 width=126) (actual time=4.834..7.473 rows=228 loops=1)
+           Index Cond: (("position" && '0103000020E6100000010000000500000066666666668656C03333333333B33D4066666666668656C00000000000003E409A999999997956C00000000000003E409A999999997956C03333333333B33D4066666666668656C03333333333B33D40'::geometry) AND ("position" && '0103000020E6100000010000000500000066666666668656C03333333333B33D4066666666668656C00000000000003E409A999999997956C00000000000003E409A999999997956C03333333333B33D4066666666668656C03333333333B33D40'::geometry))
+           Filter: ((observed_at >= '2025-01-08 00:00:00+00'::timestamp with time zone) AND (observed_at <= '2025-01-08 00:10:00+00'::timestamp with time zone) AND st_intersects("position", '0103000020E6100000010000000500000066666666668656C03333333333B33D4066666666668656C00000000000003E409A999999997956C00000000000003E409A999999997956C03333333333B33D4066666666668656C03333333333B33D40'::geometry))
+           Buffers: shared hit=141
+   ->  Nested Loop  (cost=0.06..14.06 rows=1 width=128) (actual time=8.018..26.653 rows=73 loops=1)
+         Join Filter: (filtered_positions.mmsi = filtered_positions_1.mmsi)
+         Rows Removed by Join Filter: 6570
+         Buffers: shared hit=144
+         ->  GroupAggregate  (cost=0.03..0.81 rows=1 width=72) (actual time=7.912..9.792 rows=127 loops=1)
+               Group Key: filtered_positions.mmsi
+               Buffers: shared hit=144
+               ->  Sort  (cost=0.03..0.04 rows=1 width=128) (actual time=7.760..7.779 rows=228 loops=1)
+                     Sort Key: filtered_positions.mmsi, filtered_positions.observed_at
+                     Sort Method: quicksort  Memory: 58kB
+                     Buffers: shared hit=144
+                     ->  CTE Scan on filtered_positions  (cost=0.00..0.02 rows=1 width=128) (actual time=4.839..7.652 rows=228 loops=1)
+                           Buffers: shared hit=141
+         ->  GroupAggregate  (cost=0.03..0.09 rows=1 width=64) (actual time=0.003..0.127 rows=52 loops=127)
+               Group Key: filtered_positions_1.mmsi
+               Filter: ((count(*))::integer >= 2)
+               Rows Removed by Filter: 39
+               ->  WindowAgg  (cost=0.03..0.05 rows=1 width=24) (actual time=0.001..0.072 rows=165 loops=127)
+                     ->  Sort  (cost=0.03..0.04 rows=1 width=16) (actual time=0.001..0.008 rows=165 loops=127)
+                           Sort Key: filtered_positions_1.mmsi, filtered_positions_1.observed_at
+                           Sort Method: quicksort  Memory: 33kB
+                           ->  CTE Scan on filtered_positions filtered_positions_1  (cost=0.00..0.02 rows=1 width=16) (actual time=0.001..0.021 rows=228 loops=1)
+ Planning:
+   Buffers: shared hit=349 read=4 dirtied=2
+ Planning Time: 23.027 ms
+ Execution Time: 27.001 ms
+(35 rows)
+

@@ -1,0 +1,61 @@
+{
+  "test_fixture_id": "SPILL_TEST_FIXTURE_AIS_003",
+  "artifact_provenance": {
+    "drift_metadata_path": "C:\\Users\\DELL\\Desktop\\SpillTrace-SIH26\\ml\\test_fixture_outputs\\SPILL_TEST_FIXTURE_AIS_003\\drift_metadata.json",
+    "corridor_geojson_path": "C:\\Users\\DELL\\Desktop\\SpillTrace-SIH26\\ml\\test_fixture_outputs\\SPILL_TEST_FIXTURE_AIS_003\\origin_corridor.geojson",
+    "slick_geojson_path": "C:\\Users\\DELL\\Desktop\\SpillTrace-SIH26\\ml\\test_fixture_outputs\\SPILL_TEST_FIXTURE_AIS_003\\slick_geometry.geojson",
+    "data_mode": "TEST_FIXTURE",
+    "scenario_type": "Analyst Parameter-Driven Scenario Simulation",
+    "timestamp_verification": false
+  },
+  "input_ais_source": "C:\\Users\\DELL\\Desktop\\SpillTrace-SIH26\\data\\ais\\cleaned\\ais_sample_10000_cleaned.parquet",
+  "time_window": {
+    "configured_start": "2025-01-08T00:00:00+00:00",
+    "configured_end": "2025-01-08T00:10:00+00:00",
+    "actual_start": "2025-01-08T00:00:00+00:00",
+    "actual_end": "2025-01-08T00:02:49+00:00"
+  },
+  "spatial_window": {
+    "filter_method": "GeoJSON Polygon covers(Point(longitude, latitude))",
+    "corridor_geojson": "C:\\Users\\DELL\\Desktop\\SpillTrace-SIH26\\ml\\test_fixture_outputs\\SPILL_TEST_FIXTURE_AIS_003\\origin_corridor.geojson",
+    "coordinate_order": "[longitude, latitude]",
+    "crs": "EPSG:4326",
+    "boundary_policy": "included_via_covers",
+    "corridor_lon_range": [
+      -90.31745861315174,
+      -90.1122250000002
+    ],
+    "corridor_lat_range": [
+      29.033684989783026,
+      29.23368499999981
+    ],
+    "actual_lon_range": [
+      -90.25365,
+      -90.1907
+    ],
+    "actual_lat_range": [
+      29.04708,
+      29.22819
+    ]
+  },
+  "counts": {
+    "input_rows": 9977,
+    "input_unique_mmsi": 6890,
+    "filtered_rows": 95,
+    "filtered_unique_mmsi": 71
+  },
+  "phase_3_status": {
+    "candidate_persistence": "NOT_PERSISTED",
+    "persistence_hold_reason": "Phase 3 filtering and audit only; Phase 4 backend compatibility approval is required before persistence.",
+    "candidate_ranking_attempted": false,
+    "result_state": "real_ais_corridor_matches_available_for_phase_4_review"
+  },
+  "notes": [
+    "Filtered AIS uses only real records from the cleaned Parquet.",
+    "No synthetic AIS positions, MMSIs, scores, or candidate rows are introduced.",
+    "Spatial filtering uses the supplied Phase 2 origin_corridor.geojson polygon in EPSG:4326.",
+    "The corridor intersection result is data-driven; zero matched AIS is a valid result.",
+    "Candidate persistence and ranking are prohibited in Phase 3 pending Phase 4 backend approval.",
+    "Original SPILL_TEST3_001 remains unchanged, incompatible, and blocked with HTTP 409."
+  ]
+}

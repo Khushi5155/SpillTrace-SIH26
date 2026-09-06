@@ -1,0 +1,11 @@
+{
+  "test_fixture_id": "SPILL_TEST_FIXTURE_AIS_002",
+  "filtered_ais_source": "C:\\Users\\DELL\\Desktop\\SpillTrace-SIH26\\data\\ais\\cleaned\\ais_phase3_fixture_002.parquet",
+  "total_mmsi_in_window": 0,
+  "per_mmsi_audit": [],
+  "notes": [
+    "Audit computed from real AIS only.",
+    "No synthetic records or fabricated gaps.",
+    "Continuity status is a simple heuristic for test-fixture use."
+  ]
+}

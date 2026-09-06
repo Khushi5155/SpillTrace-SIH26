@@ -1,0 +1,39 @@
+{
+  "test_fixture_id": "SPILL_TEST_FIXTURE_AIS_001",
+  "input_ais_source": "C:\\Users\\DELL\\Desktop\\SpillTrace-SIH26\\data\\ais\\cleaned\\ais_sample_10000_cleaned.parquet",
+  "time_window": {
+    "configured_start": "2025-01-08T00:00:00+00:00",
+    "configured_end": "2025-01-08T00:10:00+00:00",
+    "actual_start": "2025-01-08T00:00:00+00:00",
+    "actual_end": "2025-01-08T00:03:14+00:00"
+  },
+  "spatial_window": {
+    "configured_lon_range": [
+      -91.980124,
+      -88.980124
+    ],
+    "configured_lat_range": [
+      28.199723,
+      31.199723
+    ],
+    "actual_lon_range": [
+      -91.95342,
+      -88.98195
+    ],
+    "actual_lat_range": [
+      28.565,
+      31.09341
+    ]
+  },
+  "counts": {
+    "input_rows": 9977,
+    "input_unique_mmsi": 6890,
+    "filtered_rows": 1701,
+    "filtered_unique_mmsi": 990
+  },
+  "notes": [
+    "Filtered AIS uses only real records from the cleaned Parquet.",
+    "No synthetic AIS positions, MMSIs, or candidates are introduced.",
+    "This is a TEST_FIXTURE scenario; original SPILL_TEST3_001 remains blocked with HTTP 409."
+  ]
+}

@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from backend.app.schemas.common import HealthResponse
+from app.schemas.common import HealthResponse
 
 router = APIRouter(tags=["system"])
 

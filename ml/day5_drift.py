@@ -6,6 +6,7 @@ Modules:
    generates particle trajectories, corridors, and Pratyush's metadata).
 2. Controlled Simulation Validation (Known synthetic source validation and error metrics).
 3. Monte Carlo Sensitivity & Reproducibility Analysis (Robustness testing across wind/current/seed variations).
+test
 """
 
 import os
@@ -20,8 +21,9 @@ from shapely.geometry import LineString, mapping
 # ==========================================
 # 1. Global Configuration & Constants
 # ==========================================
-DAY4_GEOJSON_PATH = "day4_outputs/slick_geometry.geojson"
-DAY5_DIR = "day5_outputs"
+# CHANGE 1: Point to the new test-fixture sandbox folder
+DAY4_GEOJSON_PATH = "test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/slick_geometry.geojson"
+DAY5_DIR = "test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003"
 
 os.makedirs(DAY5_DIR, exist_ok=True)
 
@@ -31,8 +33,8 @@ os.makedirs(DAY5_DIR, exist_ok=True)
 def run_operational_hindcast():
     print("\n--- Running Operational Hindcast Pipeline ---")
     
-    HINDCAST_HOURS = 12
-    TIME_STEP_HOURS = 1
+    HINDCAST_MINUTES = 10
+    TIME_STEP_MINUTES = 1
     WIND_SPEED_KNOTS = 15.0
     WIND_DIR_FROM = 270.0  # Blowing FROM West
     CURRENT_SPEED_KNOTS = 1.2
@@ -68,14 +70,16 @@ def run_operational_hindcast():
     hindcast_u = -total_u
     hindcast_v = -total_v
     
-    hindcast_distance = math.hypot(hindcast_u, hindcast_v)
+    # Calculate distance per minute instead of per hour
+    hindcast_distance_per_hour = math.hypot(hindcast_u, hindcast_v)
+    hindcast_distance_per_minute = hindcast_distance_per_hour / 60.0
     hindcast_bearing = (math.degrees(math.atan2(hindcast_u, hindcast_v)) + 360) % 360
 
     trajectory = [current_point]
-    for _ in range(1, HINDCAST_HOURS + 1):
-        next_point = geodesic(meters=hindcast_distance).destination(current_point, hindcast_bearing)
+    for _ in range(1, HINDCAST_MINUTES + 1):
+        next_point = geodesic(meters=hindcast_distance_per_minute).destination(current_point, hindcast_bearing)
         current_point = (next_point.latitude, next_point.longitude)
-        uncertainty_radius_m += (hindcast_distance * UNCERTAINTY_FACTOR)
+        uncertainty_radius_m += (hindcast_distance_per_minute * UNCERTAINTY_FACTOR)
         trajectory.append(current_point)
 
     origin_lat, origin_lon = trajectory[-1]
@@ -90,7 +94,7 @@ def run_operational_hindcast():
         "features": [{
             "type": "Feature",
             "properties": {
-                "hindcast_hours": HINDCAST_HOURS,
+                "hindcast_minutes": HINDCAST_MINUTES,
                 "origin_lat": round(origin_lat, 6),
                 "origin_lon": round(origin_lon, 6),
                 "final_uncertainty_radius_m": round(uncertainty_radius_m, 2)
@@ -117,9 +121,12 @@ def run_operational_hindcast():
         json.dump(particles_geojson, f, indent=4)
 
     # Export Drift Metadata for Pratyush
+    # CHANGE 3: Export strict Drift Metadata for Pratyush API contract
     drift_metadata = {
-        "hindcast_duration_hours": HINDCAST_HOURS,
-        "time_step_hours": TIME_STEP_HOURS,
+        "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
+        "drift_run_id": "drift_validation_sim_003",
+        "hindcast_duration_minutes": HINDCAST_MINUTES,
+        "time_step_minutes": TIME_STEP_MINUTES,
         "mode": "analyst-parameter-driven",
         "wind_speed_knots": WIND_SPEED_KNOTS,
         "wind_dir_from_deg": WIND_DIR_FROM,
@@ -129,7 +136,14 @@ def run_operational_hindcast():
         "current_coeff": CURRENT_COEFF,
         "estimated_origin_centroid": [round(origin_lon, 6), round(origin_lat, 6)],
         "final_uncertainty_radius_m": round(uncertainty_radius_m, 2),
-        "origin_time_window": "T-12h to T-0h"
+        
+        # Mandatory API test-fixture tags
+        "origin_window_start_utc": "2025-01-08T00:00:00Z",
+        "origin_window_end_utc": "2025-01-08T00:10:00Z",
+        "data_mode": "TEST_FIXTURE",
+        "scenario_type": "Analyst Parameter-Driven Scenario Simulation",
+        "timestamp_verification": False,
+        "seed": 42
     }
     with open(os.path.join(DAY5_DIR, "drift_metadata.json"), "w") as f:
         json.dump(drift_metadata, f, indent=4)
@@ -180,7 +194,7 @@ def run_controlled_simulation():
     error_m = geodesic((known_lat, known_lon), (pred_lat, pred_lon)).meters
 
     payload = {
-        "spill_id": "drift_validation_sim_001",
+        "spill_id": "drift_validation_sim_003",
         "data_mode": "controlled_simulation",
         "synthetic_data": True,
         "synthetic_data_scope": "drift_engine_validation_only",

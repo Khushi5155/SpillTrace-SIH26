@@ -1,0 +1,191 @@
+{
+  "parquet_file": "data\\ais\\cleaned\\ais_sample_10000_cleaned.parquet",
+  "etl_quality_report_file": "data\\ais\\reports\\ais_sample_10000_quality_report.json",
+  "schema": [
+    {
+      "column_name": "mmsi",
+      "column_type": "BIGINT",
+      "null": "YES",
+      "key": null,
+      "default": null,
+      "extra": null
+    },
+    {
+      "column_name": "observed_at",
+      "column_type": "TIMESTAMP WITH TIME ZONE",
+      "null": "YES",
+      "key": null,
+      "default": null,
+      "extra": null
+    },
+    {
+      "column_name": "latitude",
+      "column_type": "DOUBLE",
+      "null": "YES",
+      "key": null,
+      "default": null,
+      "extra": null
+    },
+    {
+      "column_name": "longitude",
+      "column_type": "DOUBLE",
+      "null": "YES",
+      "key": null,
+      "default": null,
+      "extra": null
+    },
+    {
+      "column_name": "sog_knots",
+      "column_type": "DOUBLE",
+      "null": "YES",
+      "key": null,
+      "default": null,
+      "extra": null
+    },
+    {
+      "column_name": "cog_degrees",
+      "column_type": "DOUBLE",
+      "null": "YES",
+      "key": null,
+      "default": null,
+      "extra": null
+    },
+    {
+      "column_name": "heading_degrees",
+      "column_type": "DOUBLE",
+      "null": "YES",
+      "key": null,
+      "default": null,
+      "extra": null
+    },
+    {
+      "column_name": "vessel_type",
+      "column_type": "DOUBLE",
+      "null": "YES",
+      "key": null,
+      "default": null,
+      "extra": null
+    },
+    {
+      "column_name": "vessel_name",
+      "column_type": "VARCHAR",
+      "null": "YES",
+      "key": null,
+      "default": null,
+      "extra": null
+    },
+    {
+      "column_name": "imo",
+      "column_type": "VARCHAR",
+      "null": "YES",
+      "key": null,
+      "default": null,
+      "extra": null
+    },
+    {
+      "column_name": "call_sign",
+      "column_type": "VARCHAR",
+      "null": "YES",
+      "key": null,
+      "default": null,
+      "extra": null
+    },
+    {
+      "column_name": "status",
+      "column_type": "DOUBLE",
+      "null": "YES",
+      "key": null,
+      "default": null,
+      "extra": null
+    },
+    {
+      "column_name": "length",
+      "column_type": "DOUBLE",
+      "null": "YES",
+      "key": null,
+      "default": null,
+      "extra": null
+    },
+    {
+      "column_name": "width",
+      "column_type": "DOUBLE",
+      "null": "YES",
+      "key": null,
+      "default": null,
+      "extra": null
+    },
+    {
+      "column_name": "draft",
+      "column_type": "DOUBLE",
+      "null": "YES",
+      "key": null,
+      "default": null,
+      "extra": null
+    },
+    {
+      "column_name": "cargo",
+      "column_type": "DOUBLE",
+      "null": "YES",
+      "key": null,
+      "default": null,
+      "extra": null
+    },
+    {
+      "column_name": "transceiver",
+      "column_type": "VARCHAR",
+      "null": "YES",
+      "key": null,
+      "default": null,
+      "extra": null
+    },
+    {
+      "column_name": "source_file",
+      "column_type": "VARCHAR",
+      "null": "YES",
+      "key": null,
+      "default": null,
+      "extra": null
+    },
+    {
+      "column_name": "source_row_number",
+      "column_type": "BIGINT",
+      "null": "YES",
+      "key": null,
+      "default": null,
+      "extra": null
+    }
+  ],
+  "summary": {
+    "cleaned_row_count": 9977,
+    "unique_mmsi_count": 6890,
+    "first_timestamp_utc": "2025-01-08 00:00:00+00:00",
+    "last_timestamp_utc": "2025-01-08 18:49:10+00:00",
+    "min_latitude": 14.54614,
+    "max_latitude": 49.65558,
+    "min_longitude": -159.35849,
+    "max_longitude": -63.85972,
+    "null_observed_at_count": 0,
+    "null_mmsi_count": 0,
+    "null_latitude_count": 0,
+    "null_longitude_count": 0,
+    "invalid_mmsi_count": 0,
+    "invalid_latitude_count": 0,
+    "invalid_longitude_count": 0
+  },
+  "duplicate_check": {
+    "duplicate_observation_count": 0
+  },
+  "ordering_check": {
+    "ordering_violation_count": 0
+  },
+  "cross_checks": {
+    "cleaned_row_count_matches_etl_report": true,
+    "unique_mmsi_count_matches_etl_report": true,
+    "no_null_required_fields": true,
+    "no_invalid_mmsi": true,
+    "no_invalid_latitude": true,
+    "no_invalid_longitude": true,
+    "no_duplicate_observations": true,
+    "sorted_by_mmsi_then_observed_at": true
+  }
+}

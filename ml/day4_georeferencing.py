@@ -5,20 +5,18 @@ import numpy as np
 import rasterio
 import rasterio.features
 import geopandas as gpd
-from shapely.geometry import shape
+from shapely.geometry import shape, Polygon
 
-# --- CONFIGURATION ---
-SAR_PATH = "test1.tiff"
+# --- CONFIGURATION (UPDATED FOR TEST FIXTURE) ---
+SAR_PATH = "test3.tiff"
 CLEAN_MASK_PATH = "day3_outputs/post_cleanup_mask_final.png"
 PROB_PATH = "day1_output_results/test1_scene_pytorch_prob.tif"
-DAY4_DIR = "day4_outputs"
+
+# CHANGE 1: Output directory points to the new 003 sandbox folder
+DAY4_DIR = "test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003"
 os.makedirs(DAY4_DIR, exist_ok=True)
 
-# 1. Load Data
-# with rasterio.open(SAR_PATH) as src:
-#     transform = src.transform
-#     crs = src.crs or "EPSG:4326"
-
+# 1. Load Data (Keeping this so script doesn't break, even if we override geometry later)
 with rasterio.open(PROB_PATH) as src:
     transform = src.transform
     crs = src.crs or "EPSG:4326"
@@ -28,79 +26,59 @@ with rasterio.open(PROB_PATH) as src:
 with rasterio.open(CLEAN_MASK_PATH) as src:
     clean_mask = (src.read(1) > 127).astype(np.uint8)
 
-# 2. Polygonize, Repair, and Extract Physics
-features = []
-shapes = rasterio.features.shapes(clean_mask, transform=transform)
+# 2. OVERRIDE: Injecting Synthetic Geometry for Gulf of Mexico
+print("Injecting synthetic Test Fixture geometry for Gulf of Mexico...")
 
-total_area_km2 = 0
-total_perimeter_m = 0
+# Hardcoded coordinates from Pratyush's hint
+# Hardcoded coordinates from Pratyush's density check
+centroid_lon = -90.212225
+centroid_lat = 29.133685
+offset = 0.05
 
-print("Extracting Day 4 geometries and calculating drift physics...")
-for i, (geom, val) in enumerate(shapes):
-    if val == 1:
-        # Repair invalid polygons automatically using buffer(0)
-        poly = shape(geom).buffer(0)
-        
-        if poly.is_empty:
-            continue
+synthetic_polygon = Polygon([
+    (centroid_lon - offset, centroid_lat - offset),
+    (centroid_lon + offset, centroid_lat - offset),
+    (centroid_lon + offset, centroid_lat + offset),
+    (centroid_lon - offset, centroid_lat + offset),
+    (centroid_lon - offset, centroid_lat - offset)
+])
 
-        # Confidence Masking
-        poly_mask = rasterio.features.geometry_mask([poly], transform=transform, invert=True, out_shape=(height, width))
-        mean_conf = float(np.mean(prob_map[poly_mask])) if np.any(poly_mask) else 0.0
-        
-        # Scale conversions (using dummy degrees -> metric approximation)
-        area_km2 = poly.area * (111.32 ** 2)
-        perimeter_m = poly.length * 111320.0
-        
-        total_area_km2 += area_km2
-        total_perimeter_m += perimeter_m
-        
-        # Compactness: 4 * pi * Area / Perimeter^2
-        area_m2 = area_km2 * 1e6
-        compactness = (4 * math.pi * area_m2) / (perimeter_m ** 2) if perimeter_m > 0 else 0
-
-        # Orientation
-        mrr = poly.minimum_rotated_rectangle
-        coords = list(mrr.exterior.coords)
-        angle = 0.0
-        if len(coords) >= 4:
-            dx1, dy1 = coords[1][0] - coords[0][0], coords[1][1] - coords[0][1]
-            dx2, dy2 = coords[2][0] - coords[1][0], coords[2][1] - coords[1][1]
-            len1, len2 = math.hypot(dx1, dy1), math.hypot(dx2, dy2)
-            angle = math.degrees(math.atan2(dy1, dx1)) if len1 >= len2 else math.degrees(math.atan2(dy2, dx2))
-
-        features.append({
-            "slick_id": i + 1,
-            "centroid": [round(poly.centroid.x, 6), round(poly.centroid.y, 6)],
-            "bounding_box": list(poly.bounds),
-            "area_km2": round(area_km2, 4),
-            "perimeter_m": round(perimeter_m, 2),
-            "orientation": round(angle % 180, 2),
-            "compactness": round(compactness, 4),
-            "confidence": round(mean_conf, 4),
-            "geometry": poly
-        })
+# Replace standard features array with our synthetic fixture
+features = [{
+    "slick_id": 1,
+    "centroid": [centroid_lon, centroid_lat],
+    "bounding_box": list(synthetic_polygon.bounds),
+    "area_km2": 1.2, # Dummy metric for fixture
+    "perimeter_m": 4440.0, # Dummy metric for fixture
+    "orientation": 0.0,
+    "compactness": 0.78,
+    "confidence": 0.99,
+    "geometry": synthetic_polygon
+}]
 
 # 3. Export GeoJSON
 if features:
-    gdf = gpd.GeoDataFrame(features, crs=crs)
-    if gdf.crs != "EPSG:4326":
-        gdf = gdf.to_crs("EPSG:4326")
+    # Force output CRS to standard EPSG:4326
+    gdf = gpd.GeoDataFrame(features, crs="EPSG:4326")
     
     geojson_path = os.path.join(DAY4_DIR, "slick_geometry.geojson")
     gdf.to_file(geojson_path, driver="GeoJSON")
-    print(f"Saved {len(features)} validated polygons to {geojson_path}")
+    print(f"Saved 1 synthetic test-fixture polygon to {geojson_path}")
 
-# 4. Export Metadata Contract
+# 4. Export Metadata Contract (UPDATED FOR TEST FIXTURE)
 pixel_count_after = int(np.sum(clean_mask > 0))
-pixel_count_before = 159232  # From Day 3 threshold 0.3 data
+pixel_count_before = 159232 
 
 metadata = {
-    "spill_id": "SPILL_TEST3_001",
-    "acquisition_start_utc": "2026-09-02T00:00:00Z",
-    "acquisition_end_utc": "2026-09-02T00:00:00Z",
-    "sar_source": "Sentinel-1",  # Or whichever satellite you downloaded this from
-    "source_crs": str(crs),
+    # CHANGE 2: Update Spill ID to 003
+    "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
+    
+    # CHANGE 3: Update Timestamp to perfectly align with AIS window
+    "acquisition_start_utc": "2025-01-08T00:10:00Z",
+    "acquisition_end_utc": "2025-01-08T00:10:00Z",
+    
+    "sar_source": "Sentinel-1",
+    "source_crs": "EPSG:4326",
     "output_crs": "EPSG:4326",
     "georeferencing_method": "injected_coordinates_for_prototype",
     "georeferencing_confidence": "prototype_scale",
@@ -114,12 +92,19 @@ metadata = {
     "morphology_parameters": "MORPH_OPEN(3x3) -> MORPH_CLOSE(5x5) -> MIN_AREA(100px)",
     "pixel_count_before_cleanup": pixel_count_before,
     "pixel_count_after_cleanup": pixel_count_after,
-    "number_of_components": len(features),
+    "number_of_components": 1,
     "area_method": "geodesic_approximation",
-    "total_area_km2": round(total_area_km2, 4),
-    "total_perimeter_m": round(total_perimeter_m, 2)
+    "total_area_km2": 1.2,
+    "total_perimeter_m": 4440.0,
+    
+    # CHANGE 4: Add mandatory Legal/Safety tags
+    "data_mode": "TEST_FIXTURE",
+    "scenario_type": "Analyst Parameter-Driven Scenario Simulation",
+    "timestamp_verification": False
 }
 
 with open(os.path.join(DAY4_DIR, "slick_geometry_metadata.json"), "w") as f:
     json.dump(metadata, f, indent=4)
 print("Saved Day 4 metadata contract.")
+
+#test

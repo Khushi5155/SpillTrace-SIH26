@@ -35,7 +35,7 @@ DISCLAIMER = (
     "It does not establish a confirmed polluter."
 )
 
-_RUNS: dict[str, CandidateRunResponse] = {}
+_RUNS: dict[tuple[str, str], CandidateRunResponse] = {}
 _DETAILS: dict[tuple[str, str], CandidateDetailResponse] = {}
 
 
@@ -47,27 +47,37 @@ def _request_id() -> str:
     return f"req_{uuid4().hex[:16]}"
 
 
-def _blocked_error(compatibility: CompatibilityStatus) -> HTTPException:
+def _blocked_error(
+    compatibility: CompatibilityStatus,
+    *,
+    mode: str,
+    extra_reasons: list[str] | None = None,
+) -> HTTPException:
+    reasons = list(compatibility.reasons)
+    if extra_reasons:
+        reasons.extend(extra_reasons)
+
     return HTTPException(
         status_code=status.HTTP_409_CONFLICT,
         detail={
             "code": "COMPATIBILITY_FAILED",
             "message": (
                 "Candidate attribution is blocked because the available "
-                "AIS, SAR, or environmental data is incompatible."
+                "AIS, SAR, environmental data, or scenario mode is not "
+                "approved for ranking persistence."
             ),
             "details": {
+                "mode": mode,
                 "temporal_overlap": compatibility.temporal_overlap,
                 "geographic_overlap": compatibility.geographic_overlap,
                 "crs_valid": compatibility.crs_valid,
                 "environmental_coverage": compatibility.environmental_coverage,
-                "reasons": compatibility.reasons,
+                "reasons": reasons,
             },
             "request_id": _request_id(),
             "timestamp_utc": _utc_now().isoformat(),
         },
     )
-
 
 def _score(candidate: CandidateInput) -> tuple[float, ScoreContributions]:
     contributions = ScoreContributions(
@@ -178,13 +188,18 @@ def _stable_run_id(spill_id: str, candidates: Iterable[CandidateInput]) -> str:
     digest = sha256(source.encode("utf-8")).hexdigest()[:16]
     return f"candidate_run_{digest}"
 
-
 def rank_candidates(
     spill_id: str,
     request: CandidateRunRequest,
 ) -> CandidateRunResponse:
-    if not request.compatibility.compatible:
-        raise _blocked_error(request.compatibility)
+    allowed, extra_reasons = _ranking_allowed(request)
+
+    if not allowed:
+        raise _blocked_error(
+            request.compatibility,
+            mode=request.drift_evidence.mode,
+            extra_reasons=extra_reasons,
+        )
 
     run_id = _stable_run_id(spill_id, request.candidates)
     now = _utc_now()
@@ -196,9 +211,23 @@ def rank_candidates(
     )[: request.limit]
 
     results = [
-        _to_result(candidate, rank=index, drift=request.drift_evidence)
+        _to_result(
+            candidate,
+            rank=index,
+            drift=request.drift_evidence,
+        )
         for index, candidate in enumerate(ranked_inputs, start=1)
     ]
+
+    is_fixture = request.drift_evidence.mode == "TEST_FIXTURE"
+
+    disclaimer = DISCLAIMER
+    if is_fixture:
+        disclaimer += (
+            " This run is a labelled analyst parameter-driven test fixture. "
+            "It is for prototype evaluation only and does not support "
+            "real-world attribution claims."
+        )
 
     response = CandidateRunResponse(
         run_id=run_id,
@@ -207,7 +236,10 @@ def rank_candidates(
         compatibility=request.compatibility,
         candidates=results,
         data_mode=request.drift_evidence.mode,
-        disclaimer=DISCLAIMER,
+        ranking_allowed=allowed,
+        prototype_label_required=is_fixture,
+        real_world_attribution_claim_allowed=False,
+        disclaimer=disclaimer,
         created_at_utc=now,
     )
 
@@ -222,7 +254,6 @@ def rank_candidates(
         _DETAILS[(run_id, result.candidate_id)] = detail
 
     return response
-
 
 def get_candidate_run(spill_id: str, run_id: str) -> CandidateRunResponse:
     response = _RUNS.get((spill_id, run_id))
@@ -239,6 +270,52 @@ def get_candidate_run(spill_id: str, run_id: str) -> CandidateRunResponse:
         )
     return response
 
+def get_spill_candidates(spill_id: str) -> CandidateListResponse:
+    matching_runs = [
+        response
+        for (stored_spill_id, _), response in _RUNS.items()
+        if stored_spill_id == spill_id
+    ]
+
+    if not matching_runs:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "CANDIDATE_RUN_NOT_FOUND",
+                "message": "Candidate run was not found for this spill.",
+                "details": {"spill_id": spill_id},
+                "request_id": _request_id(),
+                "timestamp_utc": _utc_now().isoformat(),
+            },
+        )
+
+    response = max(matching_runs, key=lambda item: item.created_at_utc)
+
+    if not response.compatibility.compatible:
+        raise _blocked_error(
+            response.compatibility,
+            mode=response.data_mode,
+        )
+
+    if response.data_mode not in {"REAL", "TEST_FIXTURE", "data_backed"}:
+        raise _blocked_error(
+            response.compatibility,
+            mode=response.data_mode,
+            extra_reasons=[f"Unsupported stored run mode: {response.data_mode}"],
+        )
+
+    candidates = [
+        _DETAILS[(response.run_id, candidate.candidate_id)]
+        for candidate in response.candidates
+        if (response.run_id, candidate.candidate_id) in _DETAILS
+    ]
+
+    return CandidateListResponse(
+        spill_id=spill_id,
+        run_id=response.run_id,
+        candidates=candidates,
+    )
+
 def get_candidate_list(
     spill_id: str,
     run_id: str,
@@ -246,7 +323,17 @@ def get_candidate_list(
     response = get_candidate_run(spill_id, run_id)
 
     if not response.compatibility.compatible:
-        raise _blocked_error(response.compatibility)
+        raise _blocked_error(
+            response.compatibility,
+            mode=response.data_mode,
+        )
+
+    if response.data_mode not in {"REAL", "TEST_FIXTURE"}:
+        raise _blocked_error(
+            response.compatibility,
+            mode=response.data_mode,
+            extra_reasons=[f"Unsupported stored run mode: {response.data_mode}"],
+        )
 
     candidates = [
         _DETAILS[(run_id, candidate.candidate_id)]
@@ -266,6 +353,20 @@ def get_candidate_detail(
     candidate_id: str,
 ) -> CandidateDetailResponse:
     response = get_candidate_run(spill_id, run_id)
+
+    if not response.compatibility.compatible:
+        raise _blocked_error(
+            response.compatibility,
+            mode=response.data_mode,
+        )
+
+    if not response.ranking_allowed:
+        raise _blocked_error(
+            response.compatibility,
+            mode=response.data_mode,
+            extra_reasons=["Stored candidate run is not approved for ranking access."],
+        )
+
     detail = _DETAILS.get((run_id, candidate_id))
 
     if detail is None:
@@ -281,3 +382,25 @@ def get_candidate_detail(
         )
 
     return detail
+
+def _ranking_allowed(request: CandidateRunRequest) -> tuple[bool, list[str]]:
+    compatibility = request.compatibility
+    reasons: list[str] = []
+
+    if not compatibility.compatible:
+        reasons.extend(compatibility.reasons)
+        return False, reasons
+
+    mode = request.drift_evidence.mode
+
+    if mode in {"REAL", "TEST_FIXTURE", "data_backed"}:
+        if mode == "TEST_FIXTURE":
+            return True, [
+                "Ranking persistence approved for labelled TEST_FIXTURE mode.",
+                "Results must remain visibly marked as analyst parameter-driven test fixture.",
+                "Real-world attribution claims remain disallowed.",
+            ]
+        return True, reasons
+
+    reasons.append(f"Unsupported data mode for ranking persistence: {mode}")
+    return False, reasons
