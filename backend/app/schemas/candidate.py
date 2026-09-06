@@ -121,6 +121,13 @@ class CandidateRunResponse(BaseModel):
     disclaimer: str
     created_at_utc: datetime
 
+class CandidateListResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    spill_id: str
+    run_id: str
+    candidates: list[CandidateDetailResponse]
+
 class CandidateDetailResponse(CandidateResult):
     spill_id: str
     run_id: str

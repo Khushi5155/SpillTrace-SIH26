@@ -4,11 +4,13 @@ from fastapi import APIRouter
 
 from app.schemas.candidate import (
     CandidateDetailResponse,
+    CandidateListResponse,
     CandidateRunRequest,
     CandidateRunResponse,
 )
 from app.services.candidate_service import (
     get_candidate_detail,
+    get_candidate_list,
     get_candidate_run,
     rank_candidates,
 )
@@ -37,6 +39,17 @@ def read_candidate_run(
     return get_candidate_run(spill_id, run_id)
 
 @router.get(
+    "/spills/{spill_id}/candidate-runs/{run_id}/candidates",
+    response_model=CandidateListResponse,
+    responses={409: {"description": "Compatibility gate blocked attribution"}},
+)
+def read_candidate_list(
+    spill_id: str,
+    run_id: str,
+) -> CandidateListResponse:
+    return get_candidate_list(spill_id, run_id)
+
+@router.get(
     "/spills/{spill_id}/candidate-runs/{run_id}/candidates/{candidate_id}",
     response_model=CandidateDetailResponse,
 )
@@ -46,3 +59,14 @@ def read_candidate_detail(
     candidate_id: str,
 ) -> CandidateDetailResponse:
     return get_candidate_detail(spill_id, run_id, candidate_id)
+
+@router.get(
+    "/spills/{spill_id}/candidate-runs/{run_id}/candidates",
+    response_model=list[CandidateDetailResponse],
+    responses={409: {"description": "Compatibility gate blocked attribution"}},
+)
+def read_candidate_list(
+    spill_id: str,
+    run_id: str,
+) -> list[CandidateDetailResponse]:
+    return get_candidate_list(spill_id, run_id)

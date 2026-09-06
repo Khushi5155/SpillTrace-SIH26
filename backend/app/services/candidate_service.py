@@ -10,6 +10,7 @@ from fastapi import HTTPException, status
 from app.schemas.candidate import (
     CandidateDetailResponse,
     CandidateInput,
+    CandidateListResponse,
     CandidateResult,
     CandidateRunRequest,
     CandidateRunResponse,
@@ -238,6 +239,26 @@ def get_candidate_run(spill_id: str, run_id: str) -> CandidateRunResponse:
         )
     return response
 
+def get_candidate_list(
+    spill_id: str,
+    run_id: str,
+) -> CandidateListResponse:
+    response = get_candidate_run(spill_id, run_id)
+
+    if not response.compatibility.compatible:
+        raise _blocked_error(response.compatibility)
+
+    candidates = [
+        _DETAILS[(run_id, candidate.candidate_id)]
+        for candidate in response.candidates
+        if (run_id, candidate.candidate_id) in _DETAILS
+    ]
+
+    return CandidateListResponse(
+        spill_id=spill_id,
+        run_id=run_id,
+        candidates=candidates,
+    )
 
 def get_candidate_detail(
     spill_id: str,
