@@ -2128,3 +2128,414 @@ input:focus-visible {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
 }
+
+/* ============================================================
+   DAY 4-9 ADDITIONS
+   Loading / error / empty states, scene selector, detection
+   status, map layer controls, drift controls, AIS panels,
+   candidate-blocked state.
+============================================================ */
+
+.loading-state {
+  padding: 16px;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.error-state {
+  padding: 16px;
+  border: 1px solid rgba(230, 83, 60, 0.35);
+  border-radius: 10px;
+  background: rgba(230, 83, 60, 0.08);
+  color: #f2a99b;
+}
+
+.error-state strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #e6533c;
+}
+
+.empty-state {
+  padding: 16px;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+/* ---------- Scene Selector ---------- */
+
+.scene-selector-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.scene-selector-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(255, 255, 255, 0.02);
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.scene-selector-item.selected {
+  border-color: #7c5cff;
+  background: rgba(124, 92, 255, 0.1);
+}
+
+.scene-selector-item span {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+/* ---------- Detection Status ---------- */
+
+.detection-status {
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.detection-status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.detection-status-label {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.detection-queued .detection-status-label,
+.detection-processing .detection-status-label {
+  color: #facc15;
+}
+
+.detection-completed .detection-status-label {
+  color: #2fb8a3;
+}
+
+.detection-failed .detection-status-label {
+  color: #e6533c;
+}
+
+.detection-spinner {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid rgba(148, 163, 184, 0.3);
+  border-top-color: #facc15;
+  animation: spilltrace-spin 0.8s linear infinite;
+}
+
+@keyframes spilltrace-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.detection-message {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.detection-error {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(230, 83, 60, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detection-error strong {
+  color: #e6533c;
+  font-size: 0.8rem;
+}
+
+/* ---------- Compatibility extra states ---------- */
+
+.compatibility-insufficient_data,
+.compatibility-unknown,
+.compatibility-error {
+  border-color: rgba(250, 204, 21, 0.35);
+}
+
+.compatibility-loading {
+  border-color: rgba(148, 163, 184, 0.3);
+  opacity: 0.85;
+}
+
+.compatibility-explain {
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+/* ---------- Map Layers Panel ---------- */
+
+.map-layers-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.map-layer-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.map-layer-toggle.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.map-layer-toggle small {
+  color: #64748b;
+  font-size: 0.7rem;
+}
+
+/* ---------- Drift Controls ---------- */
+
+.drift-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.drift-controls input[type="number"] {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 6px;
+  padding: 6px 8px;
+  color: inherit;
+  width: 100%;
+}
+
+.drift-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* ---------- AIS ---------- */
+
+.ais-track-info {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(255, 255, 255, 0.02);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ais-track-info.ais-blocked {
+  border-color: rgba(230, 83, 60, 0.35);
+  background: rgba(230, 83, 60, 0.06);
+}
+
+.ais-track-info.ais-empty p,
+.ais-track-info.ais-blocked p {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+/* ---------- Candidate Blocked ---------- */
+
+.candidate-blocked {
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(230, 83, 60, 0.35);
+  background: rgba(230, 83, 60, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.candidate-blocked strong {
+  color: #e6533c;
+}
+
+/* ---------- Investigation layout scaffolding for new panels ---------- */
+
+.investigation-sidebar-section {
+  margin-bottom: 20px;
+}
+
+.panel-kicker {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+/* ---------- Evidence Drawer supporting classes ---------- */
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.panel-header h2 {
+  margin: 2px 0 0;
+  font-size: 1.1rem;
+}
+
+.confidence-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: rgba(124, 92, 255, 0.15);
+  color: #b8a6ff;
+  white-space: nowrap;
+}
+
+.candidate-meta {
+  display: flex;
+  gap: 14px;
+  font-size: 0.8rem;
+  color: #94a3b8;
+  margin-bottom: 12px;
+}
+
+.subheading {
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin: 14px 0 8px;
+}
+
+.feature-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.feature-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+}
+
+.feature-score {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 140px;
+}
+
+.feature-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 4px;
+  background: rgba(148, 163, 184, 0.15);
+  overflow: hidden;
+}
+
+.feature-bar > div {
+  height: 100%;
+  background: #7c5cff;
+}
+
+.feature-score strong {
+  font-size: 0.75rem;
+  white-space: nowrap;
+  color: #cbd5e1;
+}
+
+
+/* =========================================================
+   KHUSHI FRONTEND — FINAL INTEGRATION
+========================================================= */
+
+.investigation-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.map-overlay-stack {
+  position: absolute;
+  z-index: 900;
+  top: 14px;
+  right: 14px;
+  width: 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.map-action-button {
+  width: 100%;
+}
+
+.artifact-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.artifact-list a {
+  padding: 6px 8px;
+  border: 1px solid #294054;
+  border-radius: 5px;
+  color: #67e8f9;
+  font-size: 9px;
+  text-transform: capitalize;
+  text-decoration: none;
+}
+
+.artifact-list a:hover {
+  border-color: #22d3ee;
+}
+
+.upload-error small {
+  display: block;
+  margin-top: 7px;
+  color: #94a3b8;
+  line-height: 1.45;
+}
+
+.metadata-item select {
+  font: inherit;
+}
+
+@media (max-width: 700px) {
+  .map-overlay-stack {
+    width: 160px;
+    top: 10px;
+    right: 10px;
+  }
+
+  .investigation-actions {
+    width: 100%;
+  }
+}

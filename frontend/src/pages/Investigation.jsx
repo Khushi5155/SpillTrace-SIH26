@@ -1,1916 +1,2059 @@
-import React, { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import {
-  MapContainer,
-  TileLayer,
-  CircleMarker,
-  Polygon,
-  Polyline,
-  Popup,
-  Rectangle,
-} from "react-leaflet";
-
-import "leaflet/dist/leaflet.css";
-
-import spillData from "../data/mockSpillData.json";
-
-import {
-  getScene,
+  createDetection,
+  createInvestigationReport,
+  createInvestigationReportHtml,
+  detectSpillMock,
+  getAisTracks,
+  getApiError,
+  getCandidateDetail,
+  getCandidates,
+  getScenes,
   getSceneCompatibility,
+  getSceneManifest,
+  getSpill,
+  pollDetection,
+  rankCandidates,
+  resolveApiUrl,
+  runForecast,
+  runHindcast,
 } from "../services/api";
 
-import SceneMetadata from "../components/SceneMetadata";
-import CompatibilityStatus from "../components/CompatibilityStatus";
-import DataQualityPanel from "../components/DataQualityPanel";
+import SceneSelector from "../components/Scenario/SceneSelector";
+import SceneMetadata from "../components/Scenario/SceneMetadata";
+import CompatibilityStatus from "../components/Scenario/CompatibilityStatus";
 
-/* =========================================================
-   HELPERS
-========================================================= */
+import AISQualityPanel from "../components/AIS/AISQualityPanel";
+import AISTrackInfo from "../components/AIS/AISTrackInfo";
 
-const safeNumber = (value, fallback = 0) => {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : fallback;
-};
+import DetectionStatus from "../components/Detection/DetectionStatus";
+import SlickMetrics from "../components/Detection/SlickMetrics";
 
-const clamp = (value, min = 0, max = 1) =>
-  Math.min(Math.max(safeNumber(value), min), max);
+import DriftControls from "../components/Drift/DriftControls";
 
-const formatPercent = (value) =>
-  `${Math.round(clamp(value) * 100)}%`;
+import InvestigationMap from "../components/Map/InvestigationMap";
+import MapLayers from "../components/Map/MapLayers";
+import MapLegend from "../components/Map/MapLegend";
 
-const formatArea = (value) =>
-  `${safeNumber(value).toFixed(1)} km²`;
+import CandidateList from "../components/Candidates/CandidateList";
+import CandidateBlocked from "../components/Candidates/CandidateBlocked";
+import EvidenceDrawer from "../components/Candidates/EvidenceDrawer";
 
-const formatCoordinate = (value) =>
-  safeNumber(value).toFixed(3);
+import AISTimeline from "../components/Timeline/AISTimeline";
 
-const formatUtc = (value) => {
-  if (!value) return "Unavailable";
+import {
+  loadInvestigationData,
+  normalizeAisResponse,
+  normalizeCandidateResponse,
+  normalizeDetectionGeometry,
+  normalizeGeoJSON,
+  saveInvestigationData,
+} from "../utils/investigation";
 
-  const date = new Date(value);
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
 
-  if (Number.isNaN(date.getTime())) {
-    return "Unavailable";
+function normalizeCompatibility(value) {
+  if (!value) return null;
+
+  return {
+    ...value,
+    status:
+      value.status ||
+      (value.compatible === true
+        ? "pass"
+        : value.compatible === false
+          ? "blocked"
+          : "unknown"),
+  };
+}
+
+function normalizeDetectionJob(job) {
+  if (!job) return null;
+
+  const geo = normalizeDetectionGeometry(job);
+
+  return {
+    ...job,
+    geojson: geo,
+    isMock: job.isMock === true,
+  };
+}
+
+function geometryProperties(job) {
+  const metadata = job?.metadata || {};
+  const extra = metadata?.extra || {};
+
+  return {
+    centroid: metadata.centroid || null,
+
+    area_sq_km:
+      extra.area_sq_km ??
+      extra.area_km2 ??
+      metadata.area_sq_km ??
+      metadata.area_km2 ??
+      null,
+
+    perimeter_m:
+      extra.perimeter_m ??
+      metadata.perimeter_m ??
+      null,
+
+    confidence:
+      extra.confidence ??
+      extra.mean_probability ??
+      metadata.confidence ??
+      metadata.mean_probability ??
+      null,
+  };
+}
+
+function findTrackForCandidate(geojson, candidate) {
+  if (!geojson || !candidate) return null;
+
+  const features = geojson.features || [];
+
+  const targetIds = [
+    candidate.mmsi,
+    candidate.candidate_id,
+    candidate.vessel_id,
+  ]
+    .filter(Boolean)
+    .map(String);
+
+  if (!targetIds.length) return null;
+
+  return (
+    features.find((feature) => {
+      const properties = feature?.properties || {};
+
+      const values = [
+        properties.mmsi,
+        properties.candidate_id,
+        properties.vessel_id,
+      ]
+        .filter(Boolean)
+        .map(String);
+
+      return values.some((value) => targetIds.includes(value));
+    }) || null
+  );
+}
+
+function extractTrackTimestamps(track) {
+  if (!track) return [];
+
+  const properties = track.properties || {};
+
+  const timestamps =
+    properties.timestamps_utc ??
+    properties.timestamps ??
+    properties.time ??
+    properties.times ??
+    [];
+
+  if (Array.isArray(timestamps)) {
+    return timestamps;
   }
 
-  return date.toUTCString();
-};
+  return [];
+}
 
-
-/* =========================================================
-   DEMO FALLBACK SPILL POLYGON
-
-   Temporary fallback until backend provides real
-   spill geometry.
-========================================================= */
-
-const DEMO_SPILL_POLYGON = [
-  [18.185, 72.400],
-  [18.205, 72.430],
-  [18.225, 72.445],
-  [18.250, 72.455],
-  [18.270, 72.480],
-  [18.255, 72.505],
-  [18.230, 72.520],
-  [18.205, 72.505],
-  [18.180, 72.475],
-  [18.170, 72.440],
-  [18.185, 72.400],
-];
-
-
-/* =========================================================
-   MAIN COMPONENT
-========================================================= */
+/* -------------------------------------------------------------------------- */
+/* Component                                                                  */
+/* -------------------------------------------------------------------------- */
 
 export default function Investigation() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  /* =======================================================
-     UI STATE
-  ======================================================= */
+  /* ------------------------------------------------------------------------ */
+  /* Scene state                                                              */
+  /* ------------------------------------------------------------------------ */
 
-  const [selectedCandidate, setSelectedCandidate] = useState(0);
-
-  const [selectedTimeIndex, setSelectedTimeIndex] = useState(0);
-
-  const [layers, setLayers] = useState({
-    spill: true,
-    origin: true,
-    drift: true,
-    scene: false,
-  });
-
-
-  /* =======================================================
-     DAY 5 — REAL SCENE API STATE
-  ======================================================= */
-
-  const [sceneData, setSceneData] = useState(null);
+  const [scenes, setScenes] = useState([]);
+  const [scene, setScene] = useState(null);
+  const [manifest, setManifest] = useState(null);
 
   const [sceneLoading, setSceneLoading] = useState(true);
-
   const [sceneError, setSceneError] = useState(null);
 
-  const [sceneCompatibility, setSceneCompatibility] =
+  const [compatibility, setCompatibility] = useState(null);
+  const [compatibilityLoading, setCompatibilityLoading] = useState(true);
+
+  /* ------------------------------------------------------------------------ */
+  /* Spill / detection                                                        */
+  /* ------------------------------------------------------------------------ */
+
+  const [spill, setSpill] = useState(null);
+
+  const [detection, setDetection] = useState(null);
+  const [detectionLoading, setDetectionLoading] = useState(false);
+  const [detectionError, setDetectionError] = useState(null);
+
+  const [slickGeojson, setSlickGeojson] = useState(null);
+
+  const [slickIsMock, setSlickIsMock] = useState(false);
+  const [mockArea, setMockArea] = useState(null);
+
+  /* ------------------------------------------------------------------------ */
+  /* Drift                                                                    */
+  /* ------------------------------------------------------------------------ */
+
+  const [hindcastResult, setHindcastResult] = useState(null);
+  const [forecastResult, setForecastResult] = useState(null);
+
+  const [hindcastLoading, setHindcastLoading] = useState(false);
+  const [forecastLoading, setForecastLoading] = useState(false);
+
+  const [driftError, setDriftError] = useState(null);
+
+  /* ------------------------------------------------------------------------ */
+  /* AIS                                                                      */
+  /* ------------------------------------------------------------------------ */
+
+  const [aisTracksGeojson, setAisTracksGeojson] = useState(null);
+  const [aisLoading, setAisLoading] = useState(false);
+  const [aisError, setAisError] = useState(null);
+
+  const [selectedAisTrack, setSelectedAisTrack] = useState(null);
+
+  /* ------------------------------------------------------------------------ */
+  /* Candidates                                                               */
+  /* ------------------------------------------------------------------------ */
+
+  const [candidateRun, setCandidateRun] = useState(null);
+  const [candidateError, setCandidateError] = useState(null);
+  const [candidateBlockedDetails, setCandidateBlockedDetails] =
     useState(null);
 
+  const [candidateLoading, setCandidateLoading] = useState(false);
+  const [candidateDetailLoading, setCandidateDetailLoading] = useState(false);
 
-  /* =======================================================
-     LOAD REAL SCENE + COMPATIBILITY
-  ======================================================= */
+  const [selectedCandidateId, setSelectedCandidateId] = useState(null);
 
-  useEffect(() => {
-    let mounted = true;
+  /* ------------------------------------------------------------------------ */
+  /* Timeline / report                                                        */
+  /* ------------------------------------------------------------------------ */
 
-    const loadScene = async () => {
-      const sceneId = "scene_demo_001";
+  const [timelineIndex, setTimelineIndex] = useState(0);
 
-      try {
-        setSceneLoading(true);
-        setSceneError(null);
-        setSceneData(null);
-        setSceneCompatibility(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState(null);
 
-        /* -----------------------------------------------
-           1. Load scene manifest
-        ------------------------------------------------ */
+  /* ------------------------------------------------------------------------ */
+  /* Map layers                                                               */
+  /* ------------------------------------------------------------------------ */
 
-        const manifest = await getScene(sceneId);
+  const [layers, setLayers] = useState({
+    sarSource: true,
+    slick: true,
+    hindcastOrigin: true,
+    forecastCorridor: true,
+    aisTracks: true,
+    candidateTrack: true,
+  });
 
-        if (!mounted) return;
-
-        setSceneData(manifest);
-
-        /* -----------------------------------------------
-           2. Load compatibility
-        ------------------------------------------------ */
-
-        const compatibility =
-          await getSceneCompatibility(sceneId);
-
-        if (!mounted) return;
-
-        setSceneCompatibility(compatibility);
-      } catch (error) {
-        console.error(
-          "Scene loading failed:",
-          error
-        );
-
-        if (!mounted) return;
-
-        const message =
-          error?.response?.data?.detail ||
-          error?.response?.data?.message ||
-          error?.message ||
-          "Failed to load scene metadata.";
-
-        setSceneError(message);
-      } finally {
-        if (mounted) {
-          setSceneLoading(false);
-        }
-      }
-    };
-
-    loadScene();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-
-  /* =======================================================
-     MOCK INVESTIGATION DATA
-
-     These remain only where the real backend data is not
-     available yet.
-  ======================================================= */
-
-  const investigation =
-    spillData?.investigation ?? {};
-
-  const scenario =
-    spillData?.scenario_manifest ?? {};
-
-  const spill =
-    spillData?.spill_detection ?? {};
-
-  const origin =
-    spillData?.origin_reconstruction ?? {};
-
-  const ais =
-    spillData?.ais_summary ?? {};
-
-  const candidates =
-    spillData?.vessel_candidates ?? [];
-
-  const backwardParticles =
-    origin?.backward_particles ?? [];
-
-
-  /* =======================================================
-     REAL SCENE DATA
-  ======================================================= */
-
-  const realScene =
-    sceneData?.scene ?? null;
-
-  const realManifest =
-    sceneData?.manifest ?? null;
-
-
-  /* =======================================================
-     EMPTY SCENE STATE
-
-     Successful API response but no scene metadata.
-  ======================================================= */
-
-  const sceneIsEmpty =
-    !sceneLoading &&
-    !sceneError &&
-    !realScene;
-
-
-  /* =======================================================
-     COMPATIBILITY
-
-     Backend compatibility is always preferred.
-
-     Candidate ranking is blocked when backend returns
-     compatible:false.
-  ======================================================= */
-
-  const backendCompatibility =
-    sceneCompatibility?.compatibility ?? null;
-
-  let compatibility;
-
-  if (backendCompatibility) {
-    compatibility = {
-      ...backendCompatibility,
-
-      status: backendCompatibility.compatible
-        ? "compatible"
-        : "blocked",
-
-      reasons:
-        backendCompatibility.reasons ?? [],
-    };
-  } else if (sceneLoading) {
-    compatibility = {
-      status: "loading",
-      reasons: [],
-    };
-  } else if (sceneError || sceneIsEmpty) {
-    compatibility = {
-      status: "blocked",
-
-      reasons: [
-        sceneError ||
-          "Scene compatibility is unavailable.",
-      ],
-    };
-  } else {
-    compatibility =
-      scenario?.compatibility ?? {
-        status: "blocked",
-
-        reasons: [
-          "Compatibility information unavailable.",
-        ],
-      };
-  }
-
-
-  /* =======================================================
-     COORDINATES
-  ======================================================= */
-
-  const spillLat = safeNumber(
-    spill?.centroid?.lat,
-    18.234
-  );
-
-  const spillLon = safeNumber(
-    spill?.centroid?.lon,
-    72.452
-  );
-
-  const originLat = safeNumber(
-    origin?.estimated_origin?.lat,
-    18.1
-  );
-
-  const originLon = safeNumber(
-    origin?.estimated_origin?.lon,
-    71.8
-  );
-
-
-  /* =======================================================
-     MAP CENTER
-  ======================================================= */
-
-  const mapCenter = [
-    (spillLat + originLat) / 2,
-    (spillLon + originLon) / 2,
-  ];
-
-
-  /* =======================================================
-     SAR SCENE BOUNDS
-
-     Backend-first.
-
-     Expected future backend format:
-
-     bounds: [minLon, minLat, maxLon, maxLat]
-
-     Until backend supplies bounds, use the existing
-     demo scenario bounds and label them as demo.
-  ======================================================= */
-
-  const sar =
-    scenario?.sar ?? {};
-
-  const backendBounds =
-    realScene?.bounds ??
-    realManifest?.bounds ??
-    realManifest?.scene?.bounds ??
-    null;
-
-  const fallbackBounds =
-    sar?.bounds ?? null;
-
-  const activeSceneBounds =
-    Array.isArray(backendBounds) &&
-    backendBounds.length === 4
-      ? backendBounds
-      : Array.isArray(fallbackBounds) &&
-          fallbackBounds.length === 4
-        ? fallbackBounds
-        : null;
-
-  let sceneBounds = null;
-
-  if (
-    Array.isArray(activeSceneBounds) &&
-    activeSceneBounds.length === 4
-  ) {
-    const [
-      minLon,
-      minLat,
-      maxLon,
-      maxLat,
-    ] = activeSceneBounds.map(Number);
-
-    if (
-      Number.isFinite(minLon) &&
-      Number.isFinite(minLat) &&
-      Number.isFinite(maxLon) &&
-      Number.isFinite(maxLat) &&
-      minLon <= maxLon &&
-      minLat <= maxLat
-    ) {
-      sceneBounds = [
-        [minLat, minLon],
-        [maxLat, maxLon],
-      ];
-    }
-  }
-
-  const sceneBoundsAreReal =
-    Array.isArray(backendBounds) &&
-    backendBounds.length === 4;
-
-
-  /* =======================================================
-     BACKWARD DRIFT PATH
-  ======================================================= */
-
-  const driftPath = backwardParticles
-    .filter(
-      (point) =>
-        Number.isFinite(Number(point?.lat)) &&
-        Number.isFinite(Number(point?.lon))
-    )
-    .map((point) => [
-      safeNumber(point.lat),
-      safeNumber(point.lon),
-    ]);
-
-
-  /* =======================================================
-     CURRENT TIMELINE POINT
-  ======================================================= */
-
-  const selectedDriftPoint =
-    backwardParticles[selectedTimeIndex] ??
-    backwardParticles[
-      backwardParticles.length - 1
-    ] ??
-    null;
-
-  const selectedDriftLat =
-    selectedDriftPoint
-      ? safeNumber(
-          selectedDriftPoint.lat,
-          originLat
-        )
-      : originLat;
-
-  const selectedDriftLon =
-    selectedDriftPoint
-      ? safeNumber(
-          selectedDriftPoint.lon,
-          originLon
-        )
-      : originLon;
-
-
-  /* =======================================================
-     VISIBLE DRIFT PATH
-  ======================================================= */
-
-  const visibleDriftPath =
-    backwardParticles
-      .slice(selectedTimeIndex)
-      .filter(Boolean)
-      .map((point) => [
-        safeNumber(point?.lat),
-        safeNumber(point?.lon),
-      ]);
-
-
-  /* =======================================================
-     SPILL POLYGON
-  ======================================================= */
-
-  const spillPolygon =
-    Array.isArray(spill?.polygon_geojson) &&
-    spill.polygon_geojson.length > 0
-      ? spill.polygon_geojson
-      : DEMO_SPILL_POLYGON;
-
-
-  /* =======================================================
-     SELECTED CANDIDATE
-
-     Never expose candidate ranking when attribution
-     compatibility is blocked.
-  ======================================================= */
-
-  const attributionBlocked =
-    compatibility?.status === "blocked" ||
-    compatibility?.compatible === false;
-
-  const currentCandidate =
-    attributionBlocked
-      ? null
-      : candidates[selectedCandidate] ?? null;
-
-
-  /* =======================================================
-     MAP LAYER TOGGLE
-  ======================================================= */
-
-  const toggleLayer = (layerName) => {
+  const toggleLayer = useCallback((key) => {
     setLayers((previous) => ({
       ...previous,
-      [layerName]: !previous[layerName],
+      [key]: !previous[key],
     }));
-  };
+  }, []);
 
+  /* ------------------------------------------------------------------------ */
+  /* Persisted investigation                                                  */
+  /* ------------------------------------------------------------------------ */
 
-  /* =======================================================
-     TIMELINE
-  ======================================================= */
+  const persisted = useMemo(() => {
+    return loadInvestigationData(id);
+  }, [id]);
 
-  const handleTimelineChange = (event) => {
-    setSelectedTimeIndex(
-      Number(event.target.value)
-    );
-  };
+  const spillId =
+    spill?.spill_id ||
+    persisted?.upload?.spill_id ||
+    id;
 
+  /* ------------------------------------------------------------------------ */
+  /* Load scene                                                               */
+  /* ------------------------------------------------------------------------ */
 
-  /* =======================================================
-     CANDIDATE RANKING ACTION
+  const loadScene = useCallback(async (sceneId) => {
+    if (!sceneId) return;
 
-     Real backend ranking will be connected on Day 7.
+    setSceneLoading(true);
+    setCompatibilityLoading(true);
+    setSceneError(null);
 
-     For now, only allow the action when compatibility
-     passes.
-  ======================================================= */
+    try {
+      const response = await getSceneManifest(sceneId);
 
-  const handleRankCandidates = () => {
-    if (attributionBlocked) {
+      setScene(response?.scene || null);
+      setManifest(response?.manifest || null);
+
+      try {
+        const compatibilityResponse =
+          await getSceneCompatibility(sceneId);
+
+        setCompatibility(
+          normalizeCompatibility(
+            compatibilityResponse?.compatibility
+          )
+        );
+      } catch (compatibilityError) {
+        setCompatibility(null);
+
+        const compatibilityApiError =
+          getApiError(compatibilityError);
+
+        console.warn(
+          "Scene compatibility request failed:",
+          compatibilityApiError.message
+        );
+      }
+    } catch (err) {
+      const apiError = getApiError(err);
+
+      setSceneError(apiError.message);
+      setScene(null);
+      setManifest(null);
+      setCompatibility(null);
+    } finally {
+      setSceneLoading(false);
+      setCompatibilityLoading(false);
+    }
+  }, []);
+
+  /* ------------------------------------------------------------------------ */
+  /* Initial investigation boot                                               */
+  /* ------------------------------------------------------------------------ */
+
+  useEffect(() => {
+    let active = true;
+
+    async function boot() {
+      setSceneLoading(true);
+      setCompatibilityLoading(true);
+      setSceneError(null);
+      setDetectionError(null);
+      setAisError(null);
+
+      const saved = loadInvestigationData(id);
+
+      try {
+        /* Restore previously saved detection */
+
+        if (saved?.detection && active) {
+          const normalized =
+            normalizeDetectionJob(saved.detection);
+
+          setDetection(normalized);
+
+          if (normalized.geojson) {
+            setSlickGeojson(normalized.geojson);
+          }
+
+          setSlickIsMock(normalized.isMock === true);
+        }
+
+        /* Load spill */
+
+        const spillResponse = await getSpill(id);
+
+        if (!active) return;
+
+        setSpill(spillResponse);
+
+        /* Load scene list */
+
+        const sceneListResponse = await getScenes();
+
+        if (!active) return;
+
+        const sceneList =
+          sceneListResponse?.scenes || [];
+
+        setScenes(sceneList);
+
+        /* Determine correct scene */
+
+        const savedSceneId = saved?.sceneId;
+
+        let targetSceneId = savedSceneId;
+
+        if (!targetSceneId) {
+          const matchingScene =
+            sceneList.find(
+              (item) => item.scene_id === id
+            );
+
+          targetSceneId =
+            matchingScene?.scene_id ||
+            sceneList[0]?.scene_id ||
+            null;
+        }
+
+        if (targetSceneId) {
+          await loadScene(targetSceneId);
+        } else {
+          setSceneLoading(false);
+          setCompatibilityLoading(false);
+
+          setSceneError(
+            "No SAR scene metadata is available for this investigation."
+          );
+        }
+
+        /* Resume running detection */
+
+        if (
+          saved?.detection?.job_id &&
+          ["QUEUED", "PROCESSING"].includes(
+            saved.detection.status
+          )
+        ) {
+          setDetectionLoading(true);
+
+          try {
+            const finalJob = await pollDetection(
+              saved.detection.job_id,
+              {
+                onUpdate: (job) => {
+                  if (!active) return;
+
+                  const normalized =
+                    normalizeDetectionJob(job);
+
+                  setDetection(normalized);
+
+                  if (normalized.geojson) {
+                    setSlickGeojson(
+                      normalized.geojson
+                    );
+                  }
+
+                  saveInvestigationData(id, {
+                    ...saved,
+                    detection: job,
+                  });
+                },
+              }
+            );
+
+            if (active) {
+              const normalized =
+                normalizeDetectionJob(finalJob);
+
+              setDetection(normalized);
+
+              if (normalized.geojson) {
+                setSlickGeojson(
+                  normalized.geojson
+                );
+              }
+            }
+          } catch (err) {
+            if (active) {
+              setDetectionError(
+                getApiError(err).message
+              );
+            }
+          } finally {
+            if (active) {
+              setDetectionLoading(false);
+            }
+          }
+        }
+      } catch (err) {
+        if (!active) return;
+
+        const apiError = getApiError(err);
+
+        setSceneError(apiError.message);
+
+        /* Try to preserve spill data if scene loading failed */
+
+        try {
+          const spillResponse = await getSpill(id);
+
+          if (active) {
+            setSpill(spillResponse);
+          }
+        } catch (spillError) {
+          if (active) {
+            setSceneError(
+              `${apiError.message} / ${getApiError(spillError).message}`
+            );
+          }
+        } finally {
+          if (active) {
+            setSceneLoading(false);
+            setCompatibilityLoading(false);
+          }
+        }
+      }
+    }
+
+    boot();
+
+    return () => {
+      active = false;
+    };
+  }, [id, loadScene]);
+
+  /* ------------------------------------------------------------------------ */
+  /* Compatibility                                                            */
+  /* ------------------------------------------------------------------------ */
+
+  const isCompatible =
+    compatibility?.compatible === true;
+
+  /* ------------------------------------------------------------------------ */
+  /* Try loading GeoJSON artifact                                             */
+  /* ------------------------------------------------------------------------ */
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadArtifactGeometry() {
+      if (slickGeojson) return;
+
+      const raw =
+        detection?.artifacts?.geojson;
+
+      if (!raw) return;
+
+      const url = resolveApiUrl(raw);
+
+      if (!url) return;
+
+      try {
+        const response = await fetch(url);
+
+        if (!response.ok) return;
+
+        const payload = await response.json();
+
+        const geo = normalizeGeoJSON(payload);
+
+        if (active && geo) {
+          setSlickGeojson(geo);
+        }
+      } catch {
+        /*
+         * Artifact serving is optional.
+         * The main detection response may already contain GeoJSON.
+         */
+      }
+    }
+
+    loadArtifactGeometry();
+
+    return () => {
+      active = false;
+    };
+  }, [detection?.artifacts?.geojson, slickGeojson]);
+
+  /* ------------------------------------------------------------------------ */
+  /* Real detection                                                           */
+  /* ------------------------------------------------------------------------ */
+
+  const runDetection = async () => {
+    const saved = loadInvestigationData(id);
+
+    const filePath =
+      saved?.upload?.saved_path;
+
+    const sceneId =
+      scene?.scene_id ||
+      saved?.sceneId;
+
+    if (!filePath || !sceneId) {
+      setDetectionError(
+        "No server-side uploaded file path is available. Start from Upload & Run Detection."
+      );
+
       return;
     }
 
-    console.log(
-      "Candidate ranking will be connected to the backend."
-    );
+    setDetectionLoading(true);
+    setDetectionError(null);
+
+    try {
+      const job = await createDetection({
+        sceneId,
+        filePath,
+      });
+
+      const normalizedJob =
+        normalizeDetectionJob(job);
+
+      setDetection(normalizedJob);
+
+      saveInvestigationData(id, {
+        ...saved,
+        sceneId,
+        detection: job,
+      });
+
+      const finalJob = await pollDetection(
+        job.job_id,
+        {
+          onUpdate: (next) => {
+            const normalized =
+              normalizeDetectionJob(next);
+
+            setDetection(normalized);
+
+            if (normalized.geojson) {
+              setSlickGeojson(
+                normalized.geojson
+              );
+            }
+
+            saveInvestigationData(id, {
+              ...saved,
+              sceneId,
+              detection: next,
+            });
+          },
+        }
+      );
+
+      const normalizedFinal =
+        normalizeDetectionJob(finalJob);
+
+      setDetection(normalizedFinal);
+
+      if (normalizedFinal.geojson) {
+        setSlickGeojson(
+          normalizedFinal.geojson
+        );
+      }
+
+      setSlickIsMock(false);
+
+      saveInvestigationData(id, {
+        ...saved,
+        sceneId,
+        detection: finalJob,
+      });
+    } catch (err) {
+      setDetectionError(
+        getApiError(err).message
+      );
+    } finally {
+      setDetectionLoading(false);
+    }
   };
 
+  /* ------------------------------------------------------------------------ */
+  /* Demo detection                                                           */
+  /* ------------------------------------------------------------------------ */
 
-  /* =======================================================
-     RENDER
-  ======================================================= */
+  const runDemoDetection = async () => {
+    if (!spillId) return;
+
+    setDetectionLoading(true);
+    setDetectionError(null);
+
+    try {
+      const result =
+        await detectSpillMock(spillId);
+
+      const geometry =
+        normalizeGeoJSON(result?.geometry);
+
+      setSlickGeojson(geometry);
+
+      setSlickIsMock(true);
+
+      setMockArea(
+        result?.area_sq_km ?? null
+      );
+
+      setDetection({
+        status: "COMPLETED",
+
+        message:
+          result?.message ||
+          "Demo detection completed.",
+
+        metadata: {
+          detector_name:
+            "Backend demonstration endpoint",
+
+          model_name:
+            "Mock segmentation",
+
+          total_slicks_detected: 1,
+
+          probability_threshold: null,
+
+          centroid: null,
+
+          extra: {
+            area_sq_km:
+              result?.area_sq_km ?? null,
+          },
+        },
+
+        geojson: geometry,
+
+        isMock: true,
+      });
+    } catch (err) {
+      setDetectionError(
+        getApiError(err).message
+      );
+    } finally {
+      setDetectionLoading(false);
+    }
+  };
+
+  /* ------------------------------------------------------------------------ */
+  /* Drift                                                                     */
+  /* ------------------------------------------------------------------------ */
+
+  const runDriftAction = async (
+    direction,
+    params
+  ) => {
+    if (!slickGeojson) {
+      setDriftError(
+        "No slick geometry is available. Run detection first."
+      );
+
+      return;
+    }
+
+    const isHindcast =
+      direction === "hindcast";
+
+    const setLoading = isHindcast
+      ? setHindcastLoading
+      : setForecastLoading;
+
+    const setResult = isHindcast
+      ? setHindcastResult
+      : setForecastResult;
+
+    const runner = isHindcast
+      ? runHindcast
+      : runForecast;
+
+    setLoading(true);
+    setDriftError(null);
+
+    try {
+      const result = await runner({
+        spillId,
+
+        acquisitionTimeUtc:
+          scene?.acquisition_start_utc ||
+          undefined,
+
+        slickGeojson,
+
+        parameters: params,
+      });
+
+      setResult(result);
+    } catch (err) {
+      setDriftError(
+        getApiError(err).message
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ------------------------------------------------------------------------ */
+  /* AIS                                                                       */
+  /* ------------------------------------------------------------------------ */
+
+  const loadAis = async () => {
+    if (!spillId) return;
+
+    setAisLoading(true);
+    setAisError(null);
+
+    try {
+      const response =
+        await getAisTracks(spillId);
+
+      const geo =
+        normalizeAisResponse(response);
+
+      if (!geo) {
+        throw Object.assign(
+          new Error(
+            "AIS endpoint returned no GeoJSON tracks."
+          ),
+          {
+            code: "AIS_EMPTY",
+          }
+        );
+      }
+
+      setAisTracksGeojson(geo);
+
+      /* Automatically select first track if available */
+
+      const firstTrack =
+        geo.features?.[0] || null;
+
+      if (firstTrack) {
+        setSelectedAisTrack(firstTrack);
+      }
+    } catch (err) {
+      const apiError =
+        getApiError(err);
+
+      if (
+        apiError.code ===
+        "AIS_NOT_CONFIGURED"
+      ) {
+        setAisError(
+          "AIS endpoint is not configured yet."
+        );
+      } else {
+        setAisError(
+          apiError.message
+        );
+      }
+
+      setAisTracksGeojson(null);
+    } finally {
+      setAisLoading(false);
+    }
+  };
+
+  /* ------------------------------------------------------------------------ */
+  /* Candidate ranking                                                        */
+  /* ------------------------------------------------------------------------ */
+
+  const handleRankCandidates =
+    async () => {
+      if (!compatibility || !isCompatible) {
+        return;
+      }
+
+      setCandidateLoading(true);
+      setCandidateError(null);
+      setCandidateBlockedDetails(null);
+
+      try {
+        /* -------------------------------------------------------------- */
+        /* Prefer future GET candidate endpoint                           */
+        /* -------------------------------------------------------------- */
+
+        try {
+          const generated =
+            normalizeCandidateResponse(
+              await getCandidates(spillId)
+            );
+
+          if (generated) {
+            setCandidateRun(generated);
+
+            if (
+              generated.candidates?.length
+            ) {
+              setSelectedCandidateId(
+                generated.candidates[0]
+                  .candidate_id
+              );
+            }
+
+            return;
+          }
+        } catch {
+          /*
+           * Current backend may not expose
+           * GET /api/spills/{id}/candidates.
+           *
+           * Fall through to rankCandidates().
+           */
+        }
+
+        /* -------------------------------------------------------------- */
+        /* Existing rank endpoint                                         */
+        /* -------------------------------------------------------------- */
+
+        const tracks =
+          aisTracksGeojson?.features || [];
+
+        const candidateInputs =
+          tracks
+            .map(
+              (track) =>
+                track?.properties
+                  ?.candidate_input
+            )
+            .filter(Boolean);
+
+        if (!candidateInputs.length) {
+          throw Object.assign(
+            new Error(
+              "No rankable AIS candidate records are available."
+            ),
+            {
+              code:
+                "NO_AIS_CANDIDATES",
+            }
+          );
+        }
+
+        const drift =
+          hindcastResult ||
+          forecastResult;
+
+        if (!drift) {
+          throw new Error(
+            "Run a hindcast or forecast before ranking candidates."
+          );
+        }
+
+        const driftEvidence = {
+          run_id:
+            drift.run_id || null,
+
+          run_type:
+            drift.run_type || null,
+
+          mode:
+            drift.data_mode ||
+            "analyst_parameter_driven",
+
+          corridor_reference:
+            drift.corridor?.type ||
+            null,
+
+          uncertainty_radius_m:
+            drift.uncertainty_radius_m ??
+            null,
+
+          assumptions:
+            drift.assumptions || [],
+        };
+
+        const result =
+          await rankCandidates(
+            spillId,
+            {
+              compatibility: {
+                compatible: true,
+
+                status: "passed",
+
+                temporal_overlap:
+                  compatibility.temporal_overlap ??
+                  true,
+
+                geographic_overlap:
+                  compatibility.geographic_overlap ??
+                  true,
+
+                crs_valid:
+                  compatibility.crs_valid ??
+                  true,
+
+                environmental_coverage:
+                  compatibility.environmental_coverage ??
+                  true,
+
+                reasons:
+                  compatibility.reasons ||
+                  [],
+              },
+
+              driftEvidence,
+
+              candidates:
+                candidateInputs,
+
+              limit: 10,
+            }
+          );
+
+        setCandidateRun(result);
+
+        if (
+          result?.candidates?.length
+        ) {
+          setSelectedCandidateId(
+            result.candidates[0]
+              .candidate_id
+          );
+        }
+      } catch (err) {
+        const apiError =
+          getApiError(err);
+
+        if (
+          apiError.code ===
+          "NO_AIS_CANDIDATES"
+        ) {
+          setCandidateError(
+            "AIS data is available only when the configured AIS endpoint returns rankable candidate_input records."
+          );
+        } else {
+          setCandidateError(
+            apiError.message
+          );
+        }
+
+        setCandidateBlockedDetails(
+          apiError.details || null
+        );
+      } finally {
+        setCandidateLoading(false);
+      }
+    };
+
+  /* ------------------------------------------------------------------------ */
+  /* Selected candidate                                                       */
+  /* ------------------------------------------------------------------------ */
+
+  const selectedCandidate =
+    useMemo(() => {
+      return (
+        candidateRun?.candidates?.find(
+          (candidate) =>
+            candidate.candidate_id ===
+            selectedCandidateId
+        ) || null
+      );
+    }, [
+      candidateRun,
+      selectedCandidateId,
+    ]);
+
+  /* ------------------------------------------------------------------------ */
+  /* Candidate evidence                                                       */
+  /* ------------------------------------------------------------------------ */
+
+  useEffect(() => {
+    let active = true;
+
+    async function hydrateCandidate() {
+      if (
+        !selectedCandidate ||
+        !candidateRun?.run_id
+      ) {
+        return;
+      }
+
+      const trackReference =
+        selectedCandidate.track_reference;
+
+      const sourceReference =
+        selectedCandidate.source_reference;
+
+      if (
+        !trackReference &&
+        !sourceReference
+      ) {
+        return;
+      }
+
+      setCandidateDetailLoading(true);
+
+      try {
+        const detail =
+          await getCandidateDetail(
+            spillId,
+            candidateRun.run_id,
+            selectedCandidate.candidate_id
+          );
+
+        if (!active || !detail) {
+          return;
+        }
+
+        setCandidateRun(
+          (previous) => {
+            if (!previous) {
+              return previous;
+            }
+
+            return {
+              ...previous,
+
+              candidates:
+                previous.candidates.map(
+                  (candidate) =>
+                    candidate.candidate_id ===
+                    detail.candidate_id
+                      ? detail
+                      : candidate
+                ),
+            };
+          }
+        );
+      } catch {
+        /*
+         * Candidate detail is optional.
+         * Existing candidate result remains usable.
+         */
+      } finally {
+        if (active) {
+          setCandidateDetailLoading(false);
+        }
+      }
+    }
+
+    hydrateCandidate();
+
+    return () => {
+      active = false;
+    };
+  }, [
+    selectedCandidate,
+    candidateRun?.run_id,
+    spillId,
+  ]);
+
+  /* ------------------------------------------------------------------------ */
+  /* Candidate track                                                          */
+  /* ------------------------------------------------------------------------ */
+
+  const candidateTrackGeojson =
+    useMemo(() => {
+      if (!selectedCandidate) {
+        return null;
+      }
+
+      /* Track directly embedded in candidate */
+
+      if (
+        selectedCandidate.track_reference &&
+        typeof selectedCandidate.track_reference ===
+          "object"
+      ) {
+        return normalizeGeoJSON(
+          selectedCandidate.track_reference
+        );
+      }
+
+      /* Track found inside AIS FeatureCollection */
+
+      const fromAis =
+        findTrackForCandidate(
+          aisTracksGeojson,
+          selectedCandidate
+        );
+
+      if (fromAis) {
+        return fromAis;
+      }
+
+      /*
+       * A string track_reference may point
+       * to an API artifact. It cannot be synchronously
+       * fetched inside useMemo.
+       */
+
+      return null;
+    }, [
+      selectedCandidate,
+      aisTracksGeojson,
+    ]);
+
+  /* ------------------------------------------------------------------------ */
+  /* Timeline                                                                 */
+  /* ------------------------------------------------------------------------ */
+
+  const selectedTimeline =
+    useMemo(() => {
+      return extractTrackTimestamps(
+        candidateTrackGeojson
+      );
+    }, [candidateTrackGeojson]);
+
+  /* ------------------------------------------------------------------------ */
+  /* Candidate selection                                                      */
+  /* ------------------------------------------------------------------------ */
+
+  const handleCandidateSelect =
+    (candidateId) => {
+      setSelectedCandidateId(
+        candidateId
+      );
+
+      setTimelineIndex(0);
+
+      const candidate =
+        candidateRun?.candidates?.find(
+          (item) =>
+            item.candidate_id ===
+            candidateId
+        );
+
+      const track =
+        findTrackForCandidate(
+          aisTracksGeojson,
+          candidate
+        );
+
+      setSelectedAisTrack(track);
+    };
+
+  /* ------------------------------------------------------------------------ */
+  /* Report export                                                            */
+  /* ------------------------------------------------------------------------ */
+
+  const exportReport = async () => {
+    if (!spillId) {
+      setReportError(
+        "No spill ID is available for report export."
+      );
+
+      return;
+    }
+
+    setReportLoading(true);
+    setReportError(null);
+
+    try {
+      const geoProps =
+        geometryProperties(detection);
+
+      let status = "failed";
+
+      if (
+        candidateRun?.candidates?.length
+      ) {
+        status = "complete";
+      } else if (
+        detection?.status ===
+          "COMPLETED" ||
+        slickGeojson
+      ) {
+        status = "partial";
+      } else if (
+        compatibility &&
+        compatibility.compatible === false
+      ) {
+        status = "blocked";
+      }
+
+      const dataMode =
+        slickIsMock
+          ? "synthetic_test_fixture"
+          : detection?.status ===
+              "COMPLETED"
+            ? "real"
+            : "unavailable";
+
+      const payload = {
+        title:
+          `SpillTrace Investigation — ${spillId}`,
+
+        status,
+
+        data_mode: dataMode,
+
+        spill_id: spillId,
+
+        scene_id:
+          scene?.scene_id || null,
+
+        detector:
+          detection?.metadata || {},
+
+        geometry: slickGeojson
+          ? {
+              geometry_type:
+                slickGeojson.geometry
+                  ?.type ||
+                slickGeojson.type ||
+                null,
+
+              centroid:
+                geoProps.centroid,
+
+              area_km2:
+                geoProps.area_sq_km,
+
+              perimeter_m:
+                geoProps.perimeter_m,
+
+              polygon_count: 1,
+
+              geojson:
+                slickGeojson,
+            }
+          : null,
+
+        drift: {
+          mode:
+            hindcastResult?.data_mode ||
+            forecastResult?.data_mode ||
+            null,
+
+          run_id:
+            hindcastResult?.run_id ||
+            forecastResult?.run_id ||
+            null,
+
+          origin_time_window:
+            hindcastResult
+              ? `${hindcastResult.start_time_utc} → ${hindcastResult.end_time_utc}`
+              : null,
+
+          forecast_horizon:
+            forecastResult
+              ? `${forecastResult.start_time_utc} → ${forecastResult.end_time_utc}`
+              : null,
+
+          timestep_minutes:
+            hindcastResult?.timestep_minutes ||
+            forecastResult?.timestep_minutes ||
+            null,
+
+          particle_count:
+            hindcastResult?.particle_count ||
+            forecastResult?.particle_count ||
+            null,
+
+          uncertainty_radius_m:
+            hindcastResult?.uncertainty_radius_m ??
+            forecastResult?.uncertainty_radius_m ??
+            null,
+
+          assumptions: [
+            ...(hindcastResult?.assumptions ||
+              []),
+            ...(forecastResult?.assumptions ||
+              []),
+          ],
+
+          hindcast_geojson:
+            hindcastResult?.corridor ||
+            null,
+
+          forecast_geojson:
+            forecastResult?.corridor ||
+            null,
+        },
+
+        compatibility: {
+          compatible:
+            compatibility?.compatible ===
+            true,
+
+          status_code:
+            compatibility?.status ||
+            "unknown",
+
+          reasons:
+            compatibility?.reasons || [],
+
+          sar_time_window:
+            scene?.acquisition_start_utc &&
+            scene?.acquisition_end_utc
+              ? `${scene.acquisition_start_utc} → ${scene.acquisition_end_utc}`
+              : null,
+
+          geographic_overlap:
+            compatibility?.geographic_overlap ??
+            null,
+
+          crs_valid:
+            compatibility?.crs_valid ??
+            null,
+
+          environmental_coverage:
+            compatibility?.environmental_coverage ??
+            null,
+        },
+
+        sources: [
+          scene
+            ? {
+                source_id:
+                  scene.scene_id,
+
+                source_type: "SAR",
+
+                label:
+                  scene.source ||
+                  "SAR scene",
+
+                provenance:
+                  "Backend scene metadata",
+              }
+            : null,
+
+          aisTracksGeojson
+            ? {
+                source_id:
+                  "ais-configured",
+
+                source_type: "AIS",
+
+                label:
+                  "AIS track source",
+
+                provenance:
+                  "Configured frontend AIS endpoint",
+              }
+            : null,
+        ].filter(Boolean),
+
+        candidates:
+          (
+            candidateRun?.candidates ||
+            []
+          ).map((candidate) => ({
+            candidate_id:
+              candidate.candidate_id,
+
+            vessel_name:
+              candidate.vessel_name,
+
+            mmsi:
+              candidate.mmsi,
+
+            rank:
+              candidate.rank,
+
+            score:
+              candidate.score,
+
+            score_contributions:
+              candidate.score_contributions ||
+              {},
+
+            evidence:
+              candidate.evidence_statements ||
+              [],
+
+            ais_quality:
+              candidate.ais_quality ||
+              {},
+
+            source_ids:
+              candidate.source_reference
+                ? [
+                    candidate.source_reference,
+                  ]
+                : [],
+          })),
+
+        limitations: [
+          !aisTracksGeojson
+            ? "AIS tracks are not available from the configured frontend endpoint."
+            : null,
+
+          !candidateRun?.candidates?.length
+            ? "No candidate ranking result is available."
+            : null,
+
+          slickIsMock
+            ? "Slick geometry came from the backend demonstration endpoint, not the real ML detector."
+            : null,
+        ].filter(Boolean),
+
+        warnings:
+          detectionError
+            ? [detectionError]
+            : [],
+      };
+
+      const report =
+        await createInvestigationReport(
+          payload
+        );
+
+      const html =
+        await createInvestigationReportHtml(
+          payload
+        );
+
+      const blob = new Blob(
+        [html],
+        {
+          type:
+            "text/html;charset=utf-8",
+        }
+      );
+
+      const url =
+        URL.createObjectURL(blob);
+
+      const link =
+        document.createElement("a");
+
+      link.href = url;
+
+      link.download =
+        `${report?.report_id || "spilltrace-investigation"}.html`;
+
+      document.body.appendChild(link);
+
+      link.click();
+
+      link.remove();
+
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setReportError(
+        getApiError(err).message
+      );
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  /* ------------------------------------------------------------------------ */
+  /* Derived UI data                                                          */
+  /* ------------------------------------------------------------------------ */
+
+  const resolvedTitle =
+    scene?.scene_id ||
+    spill?.spill_id ||
+    id;
+
+  const bounds =
+    scene?.bounds ||
+    manifest?.bounds ||
+    null;
+
+  const candidateCount =
+    candidateRun?.candidates?.length || 0;
+
+  /* ------------------------------------------------------------------------ */
+  /* Render                                                                   */
+  /* ------------------------------------------------------------------------ */
 
   return (
     <div className="investigation-page">
-
-      {/* ===================================================
-          HEADER
-      =================================================== */}
+      {/* ================================================================== */}
+      {/* HEADER                                                             */}
+      {/* ================================================================== */}
 
       <div className="investigation-header">
+        <div className="investigation-title-row">
+          <div>
+            <p className="eyebrow">
+              SPILLTRACE / INVESTIGATION WORKSPACE
+            </p>
 
-        <div>
-          <div className="eyebrow">
-            ACTIVE INVESTIGATION
+            <h1>{resolvedTitle}</h1>
           </div>
 
-          <h1>
-            {investigation?.id ||
-              id ||
-              "Investigation"}
-          </h1>
-
-          <p>
-            {investigation?.region ||
-              "Arabian Sea"}
-
-            {" · "}
-
-            {investigation?.demo_case_label ||
-              "Marine oil-spill reconstruction"}
-          </p>
+          <span
+            className={`investigation-status status-${
+              compatibility?.status ||
+              "loading"
+            }`}
+          >
+            {compatibilityLoading
+              ? "Checking…"
+              : compatibility?.compatible
+                ? "Compatible"
+                : "Blocked"}
+          </span>
         </div>
 
-
-        <div className="header-actions">
-
-          <div className="status-badge">
-            <span className="status-dot" />
-
-            {investigation?.status?.toUpperCase() ||
-              "ACTIVE"}
-          </div>
-
+        <div className="investigation-actions">
           <button
-            type="button"
             className="secondary-button"
-            onClick={() => navigate("/")}
+            onClick={() =>
+              navigate("/upload")
+            }
           >
-            ← Dashboard
+            ← New Investigation
           </button>
 
+          <button
+            className="primary-button"
+            onClick={exportReport}
+            disabled={reportLoading}
+          >
+            {reportLoading
+              ? "Exporting…"
+              : "Export Investigation Report"}
+          </button>
         </div>
 
-      </div>
-
-
-      {/* ===================================================
-          DAY 5 — LOADING STATE
-      =================================================== */}
-
-      {sceneLoading && (
-        <div className="scene-loading-state">
-
-          <div className="scene-loading-spinner" />
-
-          <div className="scene-loading-text">
-
+        {sceneError && (
+          <div className="error-state">
             <strong>
-              Loading scene metadata…
+              Scene metadata
             </strong>
 
-            <span>
-              Fetching Sentinel-1 scene information
-              from the backend.
-            </span>
-
+            <p>{sceneError}</p>
           </div>
+        )}
 
-        </div>
-      )}
+        {reportError && (
+          <div className="error-state">
+            <strong>
+              Report export failed
+            </strong>
 
+            <p>{reportError}</p>
+          </div>
+        )}
+      </div>
 
-      {/* ===================================================
-          DAY 5 — ERROR STATE
-      =================================================== */}
-
-      {!sceneLoading && sceneError && (
-        <div className="warning-box">
-
-          <strong>
-            Scene metadata unavailable
-          </strong>
-
-          <span>
-            {sceneError}
-          </span>
-
-        </div>
-      )}
-
-
-      {/* ===================================================
-          DAY 5 — EMPTY STATE
-      =================================================== */}
-
-      {sceneIsEmpty && (
-        <div className="empty-state">
-
-          <strong>
-            No scene metadata available
-          </strong>
-
-          <span>
-            The selected SAR scene returned no metadata
-            from the backend.
-          </span>
-
-        </div>
-      )}
-
-
-      {/* ===================================================
-          REAL SCENE METADATA
-      =================================================== */}
-
-      {!sceneLoading && !sceneIsEmpty && (
-        <SceneMetadata
-          investigation={spillData}
-          scene={realScene}
-          manifest={realManifest}
-        />
-      )}
-
-
-      {/* ===================================================
-          COMPATIBILITY STATUS
-      =================================================== */}
-
-      {!sceneLoading && !sceneIsEmpty && (
-        <CompatibilityStatus
-          compatibility={compatibility}
-          onRankCandidates={handleRankCandidates}
-        />
-      )}
-
-
-      {/* ===================================================
-          DATA QUALITY
-      =================================================== */}
-
-      {!sceneLoading && !sceneIsEmpty && (
-        <DataQualityPanel
-          compatibility={
-            sceneCompatibility?.compatibility
-          }
-        />
-      )}
-
-
-      {/* ===================================================
-          MAIN WORKSPACE
-      =================================================== */}
+      {/* ================================================================== */}
+      {/* WORKSPACE                                                          */}
+      {/* ================================================================== */}
 
       <div className="investigation-workspace">
+        {/* ================================================================ */}
+        {/* MAP                                                               */}
+        {/* ================================================================ */}
 
+        <div className="map-container">
+          <InvestigationMap
+            sceneBounds={bounds}
+            slickGeojson={
+              slickGeojson
+            }
+            hindcastCorridor={
+              hindcastResult?.corridor ||
+              null
+            }
+            hindcastEndpoint={
+              hindcastResult?.endpoint ||
+              null
+            }
+            forecastCorridor={
+              forecastResult?.corridor ||
+              null
+            }
+            forecastEndpoint={
+              forecastResult?.endpoint ||
+              null
+            }
+            aisTracksGeojson={
+              aisTracksGeojson
+            }
+            candidateTrackGeojson={
+              candidateTrackGeojson
+            }
+            layers={layers}
+          />
 
-        {/* =================================================
-            MAP
-        ================================================= */}
+          <MapLegend />
 
-        <section className="map-section">
+          <div className="map-overlay-stack">
+            <MapLayers
+              layers={layers}
+              onToggle={toggleLayer}
+              availability={{
+                sarSource: !!bounds,
 
-          <MapContainer
-            center={mapCenter}
-            zoom={7}
-            scrollWheelZoom
-            className="investigation-map"
-          >
+                slick:
+                  !!slickGeojson,
 
-            <TileLayer
-              attribution="&copy; OpenStreetMap contributors"
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                hindcastOrigin:
+                  !!hindcastResult
+                    ?.corridor,
+
+                forecastCorridor:
+                  !!forecastResult
+                    ?.corridor,
+
+                aisTracks:
+                  !!aisTracksGeojson,
+
+                candidateTrack:
+                  !!candidateTrackGeojson,
+              }}
             />
 
-
-            {/* ---------------------------------------------
-                SAR SCENE BOUNDS
-            --------------------------------------------- */}
-
-            {layers.scene &&
-              sceneBounds && (
-                <Rectangle
-                  bounds={sceneBounds}
-                  pathOptions={{
-                    color: "#64748b",
-                    weight: 1,
-                    dashArray: "6 6",
-                    fillOpacity: 0.03,
-                  }}
-                />
-              )}
-
-
-            {/* ---------------------------------------------
-                DETECTED SPILL
-            --------------------------------------------- */}
-
-            {layers.spill &&
-              spillPolygon.length > 0 && (
-                <Polygon
-                  positions={spillPolygon}
-                  pathOptions={{
-                    color: "#ef4444",
-                    weight: 2,
-                    fillColor: "#ef4444",
-                    fillOpacity: 0.32,
-                  }}
-                >
-
-                  <Popup>
-
-                    <strong>
-                      Detected Oil Spill
-                    </strong>
-
-                    <br />
-
-                    Area:{" "}
-                    {formatArea(
-                      spill?.area_km2
-                    )}
-
-                    <br />
-
-                    Confidence:{" "}
-                    {formatPercent(
-                      spill?.detection_confidence
-                    )}
-
-                  </Popup>
-
-                </Polygon>
-              )}
-
-
-            {/* ---------------------------------------------
-                SPILL CENTROID
-            --------------------------------------------- */}
-
-            {layers.spill && (
-              <CircleMarker
-                center={[
-                  spillLat,
-                  spillLon,
-                ]}
-                radius={7}
-                pathOptions={{
-                  color: "#ffffff",
-                  weight: 2,
-                  fillColor: "#ef4444",
-                  fillOpacity: 1,
-                }}
-              >
-
-                <Popup>
-
-                  <strong>
-                    Detected Spill Centroid
-                  </strong>
-
-                  <br />
-
-                  Lat:{" "}
-                  {formatCoordinate(
-                    spillLat
-                  )}
-
-                  <br />
-
-                  Lon:{" "}
-                  {formatCoordinate(
-                    spillLon
-                  )}
-
-                </Popup>
-
-              </CircleMarker>
-            )}
-
-
-            {/* ---------------------------------------------
-                ESTIMATED ORIGIN
-            --------------------------------------------- */}
-
-            {layers.origin && (
-              <CircleMarker
-                center={[
-                  originLat,
-                  originLon,
-                ]}
-                radius={8}
-                pathOptions={{
-                  color: "#ffffff",
-                  weight: 2,
-                  fillColor: "#facc15",
-                  fillOpacity: 1,
-                }}
-              >
-
-                <Popup>
-
-                  <strong>
-                    Estimated Spill Origin
-                  </strong>
-
-                  <br />
-
-                  Lat:{" "}
-                  {formatCoordinate(
-                    originLat
-                  )}
-
-                  <br />
-
-                  Lon:{" "}
-                  {formatCoordinate(
-                    originLon
-                  )}
-
-                  <br />
-
-                  Confidence:{" "}
-                  {formatPercent(
-                    origin?.confidence
-                  )}
-
-                </Popup>
-
-              </CircleMarker>
-            )}
-
-
-            {/* ---------------------------------------------
-                FULL BACKWARD DRIFT PATH
-            --------------------------------------------- */}
-
-            {layers.drift &&
-              driftPath.length > 1 && (
-                <Polyline
-                  positions={driftPath}
-                  pathOptions={{
-                    color: "#38bdf8",
-                    weight: 3,
-                    opacity: 0.45,
-                    dashArray: "7 8",
-                  }}
-                />
-              )}
-
-
-            {/* ---------------------------------------------
-                ACTIVE TIMELINE PATH
-            --------------------------------------------- */}
-
-            {layers.drift &&
-              visibleDriftPath.length > 1 && (
-                <Polyline
-                  positions={visibleDriftPath}
-                  pathOptions={{
-                    color: "#22d3ee",
-                    weight: 4,
-                    opacity: 0.95,
-                  }}
-                />
-              )}
-
-
-            {/* ---------------------------------------------
-                SELECTED DRIFT PARTICLE
-            --------------------------------------------- */}
-
-            {layers.drift &&
-              selectedDriftPoint && (
-                <CircleMarker
-                  center={[
-                    selectedDriftLat,
-                    selectedDriftLon,
-                  ]}
-                  radius={6}
-                  pathOptions={{
-                    color: "#ffffff",
-                    weight: 2,
-                    fillColor: "#22d3ee",
-                    fillOpacity: 1,
-                  }}
-                >
-
-                  <Popup>
-
-                    <strong>
-                      Backward Drift Position
-                    </strong>
-
-                    <br />
-
-                    T ={" "}
-                    {safeNumber(
-                      selectedDriftPoint?.t_offset_hours
-                    )}{" "}
-                    hours
-
-                    <br />
-
-                    Lat:{" "}
-                    {formatCoordinate(
-                      selectedDriftLat
-                    )}
-
-                    <br />
-
-                    Lon:{" "}
-                    {formatCoordinate(
-                      selectedDriftLon
-                    )}
-
-                  </Popup>
-
-                </CircleMarker>
-              )}
-
-          </MapContainer>
-
-
-          {/* =================================================
-              MAP LEGEND
-          ================================================= */}
-
-          <div className="map-legend">
-
-            <div className="legend-title">
-              MAP LAYERS
-            </div>
-
-
             <button
-              type="button"
-              className={`legend-row ${
-                layers.spill
-                  ? "active"
-                  : ""
-              }`}
-              onClick={() =>
-                toggleLayer("spill")
-              }
+              className="secondary-button map-action-button"
+              onClick={loadAis}
+              disabled={aisLoading}
             >
-              <span className="legend-marker spill-marker" />
-
-              <span>
-                Detected Spill
-              </span>
-
+              {aisLoading
+                ? "Loading AIS…"
+                : "Load AIS Tracks"}
             </button>
-
-
-            <button
-              type="button"
-              className={`legend-row ${
-                layers.origin
-                  ? "active"
-                  : ""
-              }`}
-              onClick={() =>
-                toggleLayer("origin")
-              }
-            >
-              <span className="legend-marker origin-marker" />
-
-              <span>
-                Estimated Origin
-              </span>
-
-            </button>
-
-
-            <button
-              type="button"
-              className={`legend-row ${
-                layers.drift
-                  ? "active"
-                  : ""
-              }`}
-              onClick={() =>
-                toggleLayer("drift")
-              }
-            >
-              <span className="legend-marker drift-marker" />
-
-              <span>
-                Backward Drift
-              </span>
-
-            </button>
-
-
-            <button
-              type="button"
-              className={`legend-row ${
-                layers.scene
-                  ? "active"
-                  : ""
-              }`}
-              onClick={() =>
-                toggleLayer("scene")
-              }
-            >
-              <span className="legend-marker scene-marker" />
-
-              <span>
-                SAR Scene Bounds
-              </span>
-
-            </button>
-
           </div>
+        </div>
 
-
-          {/* =================================================
-              MAP STATUS
-          ================================================= */}
-
-          <div className="map-status">
-
-            <span className="map-status-dot" />
-
-            <span>
-              SAR + Ocean Dynamics + AIS
-            </span>
-
-          </div>
-
-
-          {/* =================================================
-              SCENE BOUNDS STATUS
-          ================================================= */}
-
-          {layers.scene &&
-            !sceneBounds && (
-              <div className="empty-state">
-
-                SAR scene bounds are not available
-                from the backend yet.
-
-              </div>
-            )}
-
-
-          {layers.scene &&
-            sceneBounds &&
-            !sceneBoundsAreReal && (
-              <div className="empty-state">
-
-                Showing demo SAR scene bounds.
-                Backend scene bounds are not
-                available yet.
-
-              </div>
-            )}
-
-        </section>
-
-
-        {/* =================================================
-            RIGHT SIDEBAR
-        ================================================= */}
+        {/* ================================================================ */}
+        {/* SIDEBAR                                                           */}
+        {/* ================================================================ */}
 
         <aside className="investigation-sidebar">
+          {/* -------------------------------------------------------------- */}
+          {/* SCENE SELECTOR                                                 */}
+          {/* -------------------------------------------------------------- */}
 
-
-          {/* =================================================
-              01 — DETECTION
-          ================================================= */}
-
-          <section className="evidence-panel">
-
-            <div className="panel-header">
-
-              <div>
-
-                <div className="panel-kicker">
-                  01 · SAR DETECTION
-                </div>
-
-                <h2>
-                  Spill Characterization
-                </h2>
-
-              </div>
-
-              <span className="confidence-badge high">
-                {spill?.confidence_label ||
-                  "HIGH"}
-              </span>
-
-            </div>
-
-
-            <div className="stats-grid">
-
-              <div className="stat-box">
-                <span>AREA</span>
-
-                <strong>
-                  {formatArea(
-                    spill?.area_km2
-                  )}
-                </strong>
-              </div>
-
-
-              <div className="stat-box">
-                <span>PERIMETER</span>
-
-                <strong>
-                  {safeNumber(
-                    spill?.perimeter_km
-                  ).toFixed(1)}{" "}
-                  km
-                </strong>
-              </div>
-
-
-              <div className="stat-box">
-                <span>CONFIDENCE</span>
-
-                <strong>
-                  {formatPercent(
-                    spill?.detection_confidence
-                  )}
-                </strong>
-              </div>
-
-
-              <div className="stat-box">
-                <span>ORIENTATION</span>
-
-                <strong>
-                  {safeNumber(
-                    spill?.orientation_deg
-                  )}
-                  °
-                </strong>
-              </div>
-
-            </div>
-
-
-            <div className="evidence-factors">
-
-              <div className="subheading">
-                Detection Evidence
-              </div>
-
-              {Array.isArray(
-                spill?.evidence_factors
-              ) &&
-                spill.evidence_factors.map(
-                  (factor) => (
-                    <div
-                      className="factor-row"
-                      key={factor.label}
-                    >
-
-                      <span>
-                        {factor.label}
-                      </span>
-
-                      <div className="factor-value">
-
-                        <div className="factor-bar">
-
-                          <div
-                            className="factor-fill"
-                            style={{
-                              width: `${
-                                clamp(
-                                  factor.value
-                                ) * 100
-                              }%`,
-                            }}
-                          />
-
-                        </div>
-
-                        <strong>
-                          {formatPercent(
-                            factor.value
-                          )}
-                        </strong>
-
-                      </div>
-
-                    </div>
-                  )
-                )}
-
-            </div>
-
+          <section className="investigation-sidebar-section">
+            <SceneSelector
+              scenes={scenes}
+              selectedSceneId={
+                scene?.scene_id
+              }
+              onSelect={loadScene}
+              loading={
+                sceneLoading &&
+                scenes.length === 0
+              }
+              error={null}
+            />
           </section>
 
+          {/* -------------------------------------------------------------- */}
+          {/* SCENE METADATA                                                 */}
+          {/* -------------------------------------------------------------- */}
 
-          {/* =================================================
-              02 — ORIGIN
-          ================================================= */}
-
-          <section className="evidence-panel">
-
-            <div className="panel-header">
-
-              <div>
-
-                <div className="panel-kicker">
-                  02 · ORIGIN HINDCAST
-                </div>
-
-                <h2>
-                  Estimated Origin
-                </h2>
-
+          <section className="investigation-sidebar-section">
+            {sceneLoading ? (
+              <div className="loading-state">
+                Loading scene metadata…
               </div>
-
-              <span className="confidence-badge medium">
-                {origin?.confidence_label ||
-                  "MEDIUM"}
-              </span>
-
-            </div>
-
-
-            <div className="origin-coordinates">
-
-              <div>
-                <span>LAT</span>
-
-                <strong>
-                  {formatCoordinate(
-                    originLat
-                  )}
-                </strong>
-              </div>
-
-
-              <div>
-                <span>LON</span>
-
-                <strong>
-                  {formatCoordinate(
-                    originLon
-                  )}
-                </strong>
-              </div>
-
-            </div>
-
-
-            <div className="origin-method">
-
-              <span>METHOD</span>
-
-              <strong>
-                {origin?.method ||
-                  "Backward drift hindcast"}
-              </strong>
-
-            </div>
-
-
-            <div className="origin-window">
-
-              <span>
-                ESTIMATED WINDOW
-              </span>
-
-              <strong>
-                {formatUtc(
-                  origin?.estimated_window_start
-                )}
-              </strong>
-
-              <strong>
-                {formatUtc(
-                  origin?.estimated_window_end
-                )}
-              </strong>
-
-            </div>
-
-          </section>
-
-
-          {/* =================================================
-              03 — AIS SUMMARY
-
-              Still using demo AIS summary until the real
-              AIS endpoint is available.
-          ================================================= */}
-
-          <section className="evidence-panel">
-
-            <div className="panel-header">
-
-              <div>
-
-                <div className="panel-kicker">
-                  03 · AIS FILTER
-                </div>
-
-                <h2>
-                  Traffic Analysis
-                </h2>
-
-              </div>
-
-            </div>
-
-
-            <div className="stats-grid">
-
-              <div className="stat-box">
-                <span>TRACKS</span>
-
-                <strong>
-                  {safeNumber(
-                    ais?.total_tracks_analyzed
-                  )}
-                </strong>
-              </div>
-
-
-              <div className="stat-box">
-                <span>
-                  ORIGIN WINDOW
-                </span>
-
-                <strong>
-                  {safeNumber(
-                    ais?.tracks_in_origin_window
-                  )}
-                </strong>
-              </div>
-
-
-              <div className="stat-box">
-                <span>RANKED</span>
-
-                <strong>
-                  {safeNumber(
-                    ais?.candidates_ranked
-                  )}
-                </strong>
-              </div>
-
-
-              <div className="stat-box">
-                <span>QUALITY</span>
-
-                <strong>
-                  {formatPercent(
-                    ais?.data_quality
-                      ?.ais_completeness
-                  )}
-                </strong>
-              </div>
-
-            </div>
-
-
-            {ais?.data_quality?.gap_detected && (
-              <div className="warning-box">
-
-                <strong>
-                  AIS data gap detected
-                </strong>
-
-                <span>
-                  {ais?.data_quality?.gap_note ||
-                    "AIS coverage contains a data gap."}
-                </span>
-
-              </div>
-            )}
-
-          </section>
-
-
-          {/* =================================================
-              BACKWARD DRIFT TIMELINE
-          ================================================= */}
-
-          <section className="evidence-panel timeline-panel">
-
-            <div className="panel-header">
-
-              <div>
-
-                <div className="panel-kicker">
-                  DRIFT RECONSTRUCTION
-                </div>
-
-                <h2>
-                  Backward Timeline
-                </h2>
-
-              </div>
-
-            </div>
-
-
-            {backwardParticles.length > 0 ? (
-              <>
-
-                <div className="timeline-current">
-
-                  <span>
-                    SELECTED TIME
-                  </span>
-
-                  <strong>
-                    {safeNumber(
-                      selectedDriftPoint
-                        ?.t_offset_hours
-                    )}{" "}
-                    hours
-                  </strong>
-
-                </div>
-
-
-                <input
-                  type="range"
-                  min="0"
-                  max={Math.max(
-                    backwardParticles.length - 1,
-                    0
-                  )}
-                  step="1"
-                  value={selectedTimeIndex}
-                  onChange={
-                    handleTimelineChange
-                  }
-                  className="timeline-slider"
-                />
-
-
-                <div className="timeline-labels">
-
-                  {backwardParticles.map(
-                    (point, index) => (
-                      <button
-                        type="button"
-                        key={`${point?.t_offset_hours}-${index}`}
-                        className={
-                          index === selectedTimeIndex
-                            ? "timeline-label active"
-                            : "timeline-label"
-                        }
-                        onClick={() =>
-                          setSelectedTimeIndex(
-                            index
-                          )
-                        }
-                      >
-                        {safeNumber(
-                          point?.t_offset_hours
-                        ) === 0
-                          ? "NOW"
-                          : `${safeNumber(
-                              point?.t_offset_hours
-                            )}h`}
-                      </button>
-                    )
-                  )}
-
-                </div>
-
-
-                <div className="timeline-location">
-
-                  <span>
-                    POSITION
-                  </span>
-
-                  <strong>
-                    {formatCoordinate(
-                      selectedDriftLat
-                    )}
-                    {" , "}
-                    {formatCoordinate(
-                      selectedDriftLon
-                    )}
-                  </strong>
-
-                </div>
-
-              </>
             ) : (
+              <SceneMetadata
+                scene={scene}
+                manifest={manifest}
+              />
+            )}
+          </section>
+
+          {/* -------------------------------------------------------------- */}
+          {/* COMPATIBILITY                                                  */}
+          {/* -------------------------------------------------------------- */}
+
+          <section className="investigation-sidebar-section">
+            <CompatibilityStatus
+              compatibility={
+                compatibilityLoading
+                  ? { status: "loading" }
+                  : compatibility
+              }
+              onRankCandidates={
+                handleRankCandidates
+              }
+              rankDisabled={
+                candidateLoading ||
+                !(
+                  hindcastResult ||
+                  forecastResult
+                )
+              }
+            />
+          </section>
+
+          {/* -------------------------------------------------------------- */}
+          {/* AIS QUALITY                                                    */}
+          {/* -------------------------------------------------------------- */}
+
+          <section className="investigation-sidebar-section">
+            <AISQualityPanel
+              compatibility={
+                compatibility
+              }
+            />
+
+            {aisError && (
               <div className="empty-state">
-                No backward-drift particle data
-                available.
+                {aisError}
+              </div>
+            )}
+          </section>
+
+          {/* -------------------------------------------------------------- */}
+          {/* DETECTION                                                       */}
+          {/* -------------------------------------------------------------- */}
+
+          <section className="investigation-sidebar-section">
+            <div className="section-label">
+              DETECTION
+            </div>
+
+            <DetectionStatus
+              job={detection}
+            />
+
+            <SlickMetrics
+              metadata={
+                detection?.metadata
+              }
+              mockArea={mockArea}
+              isMockSource={
+                slickIsMock
+              }
+            />
+
+            {detectionError && (
+              <div className="error-state">
+                <strong>
+                  Detection error
+                </strong>
+
+                <p>
+                  {detectionError}
+                </p>
               </div>
             )}
 
-          </section>
-
-
-          {/* =================================================
-              04 — CANDIDATE RANKING
-          ================================================= */}
-
-          <section className="evidence-panel candidates-panel">
-
-            <div className="panel-header">
-
-              <div>
-
-                <div className="panel-kicker">
-                  04 · CANDIDATE RANKING
-                </div>
-
-                <h2>
-                  Vessel Candidates
-                </h2>
-
-              </div>
-
-
-              <span className="candidate-count">
-                {attributionBlocked
-                  ? "—"
-                  : candidates.length}
-              </span>
-
-            </div>
-
-
-            <div className="candidate-list">
-
-              {/* -------------------------------------------
-                  LOADING
-              ------------------------------------------- */}
-
-              {sceneLoading ? (
-                <div className="empty-state">
-                  Waiting for scene compatibility…
-                </div>
-              ) : attributionBlocked ? (
-
-                /* -----------------------------------------
-                   BLOCKED
-                ----------------------------------------- */
-
-                <div className="ranking-blocked">
-
-                  <strong>
-                    Candidate ranking unavailable
-                  </strong>
-
-                  <span>
-                    Vessel attribution is disabled
-                    because the selected data sources
-                    are not currently compatible.
-                  </span>
-
-                  {Array.isArray(
-                    compatibility?.reasons
-                  ) &&
-                    compatibility.reasons.length > 0 && (
-                      <ul>
-                        {compatibility.reasons.map(
-                          (reason, index) => (
-                            <li
-                              key={`${reason}-${index}`}
-                            >
-                              {reason}
-                            </li>
-                          )
-                        )}
-                      </ul>
-                    )}
-
-                </div>
-
-              ) : candidates.length === 0 ? (
-
-                /* -----------------------------------------
-                   EMPTY
-                ----------------------------------------- */
-
-                <div className="empty-state">
-                  No compatible vessel candidates
-                  available.
-                </div>
-
-              ) : (
-
-                /* -----------------------------------------
-                   CANDIDATES
-                ----------------------------------------- */
-
-                candidates.map(
-                  (candidate, index) => {
-
-                    const score = clamp(
-                      candidate?.attribution_score
-                    );
-
-                    const isSelected =
-                      index === selectedCandidate;
-
-                    return (
-                      <button
-                        type="button"
-                        key={
-                          candidate?.mmsi ||
-                          index
-                        }
-                        className={`candidate-card ${
-                          isSelected
-                            ? "selected"
-                            : ""
-                        }`}
-                        onClick={() =>
-                          setSelectedCandidate(
-                            index
-                          )
-                        }
-                      >
-
-                        <div className="candidate-top">
-
-                          <div className="rank">
-                            #
-                            {candidate?.rank ??
-                              index + 1}
-                          </div>
-
-
-                          <div className="candidate-main">
-
-                            <strong>
-                              {candidate?.vessel_name ||
-                                "Unknown Vessel"}
-                            </strong>
-
-                            <span>
-                              {candidate?.vessel_type ||
-                                "Unknown Type"}
-
-                              {" · "}
-
-                              {candidate?.flag ||
-                                "N/A"}
-                            </span>
-
-                          </div>
-
-
-                          <div className="candidate-score">
-                            {formatPercent(score)}
-                          </div>
-
-                        </div>
-
-
-                        <div className="candidate-progress">
-
-                          <div
-                            style={{
-                              width: `${
-                                score * 100
-                              }%`,
-                            }}
-                          />
-
-                        </div>
-
-
-                        <div className="candidate-bottom">
-
-                          <span>
-                            MMSI{" "}
-                            {candidate?.mmsi ||
-                              "Unavailable"}
-                          </span>
-
-                          <span>
-                            {candidate?.label ||
-                              "Candidate"}
-                          </span>
-
-                        </div>
-
-                      </button>
-                    );
+            {!detection?.isMock &&
+              !slickGeojson && (
+                <button
+                  className="secondary-button"
+                  onClick={
+                    runDetection
                   }
-                )
+                  disabled={
+                    detectionLoading
+                  }
+                >
+                  {detectionLoading
+                    ? "Running detector…"
+                    : "Run Real Detection"}
+                </button>
               )}
 
-            </div>
+            {spill && (
+              <button
+                className="secondary-button"
+                onClick={
+                  runDemoDetection
+                }
+                disabled={
+                  detectionLoading
+                }
+                style={{
+                  marginTop: 8,
+                }}
+              >
+                {detectionLoading
+                  ? "Working…"
+                  : "Run Demo Detection"}
+              </button>
+            )}
 
+            {detection?.artifacts &&
+              Object.keys(
+                detection.artifacts
+              ).length > 0 && (
+                <div className="artifact-list">
+                  {Object.entries(
+                    detection.artifacts
+                  ).map(
+                    ([key, value]) => {
+                      const url =
+                        resolveApiUrl(
+                          value
+                        );
+
+                      if (!url) {
+                        return null;
+                      }
+
+                      return (
+                        <a
+                          key={key}
+                          href={url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {key.replaceAll(
+                            "_",
+                            " "
+                          )}
+                        </a>
+                      );
+                    }
+                  )}
+                </div>
+              )}
           </section>
 
+          {/* -------------------------------------------------------------- */}
+          {/* DRIFT                                                           */}
+          {/* -------------------------------------------------------------- */}
 
-          {/* =================================================
-              SELECTED CANDIDATE EVIDENCE
-          ================================================= */}
+          <section className="investigation-sidebar-section">
+            <DriftControls
+              onRunHindcast={(params) =>
+                runDriftAction(
+                  "hindcast",
+                  params
+                )
+              }
+              onRunForecast={(params) =>
+                runDriftAction(
+                  "forecast",
+                  params
+                )
+              }
+              hindcastLoading={
+                hindcastLoading
+              }
+              forecastLoading={
+                forecastLoading
+              }
+              disabledReason={
+                !slickGeojson
+                  ? "Run detection to obtain slick geometry before running drift."
+                  : null
+              }
+            />
 
-          {currentCandidate && (
-            <section className="evidence-panel selected-evidence">
+            {driftError && (
+              <div className="error-state">
+                <strong>
+                  Drift request failed
+                </strong>
 
-              <div className="panel-header">
-
-                <div>
-
-                  <div className="panel-kicker">
-                    SELECTED CANDIDATE
-                  </div>
-
-                  <h2>
-                    {currentCandidate.vessel_name}
-                  </h2>
-
-                </div>
-
-
-                <span className="confidence-badge candidate">
-                  {formatPercent(
-                    currentCandidate.attribution_score
-                  )}
-                </span>
-
+                <p>
+                  {driftError}
+                </p>
               </div>
+            )}
+          </section>
 
+          {/* -------------------------------------------------------------- */}
+          {/* AIS TRACK INFO                                                  */}
+          {/* -------------------------------------------------------------- */}
 
-              <div className="candidate-meta">
+          <section className="investigation-sidebar-section">
+            <div className="section-label">
+              AIS
+            </div>
 
-                <span>
-                  MMSI:{" "}
-                  {currentCandidate.mmsi}
+            <AISTrackInfo
+              track={selectedAisTrack}
+              compatibilityBlocked={
+                !isCompatible
+              }
+              blockedReason={
+                compatibility
+                  ?.reasons?.[0]
+              }
+            />
+          </section>
+
+          {/* -------------------------------------------------------------- */}
+          {/* CANDIDATES                                                      */}
+          {/* -------------------------------------------------------------- */}
+
+          <section className="candidate-section investigation-sidebar-section">
+            <div className="candidate-section-header">
+              <h2>
+                Candidates
+              </h2>
+
+              {candidateRun && (
+                <span className="candidate-count">
+                  {candidateCount}
                 </span>
+              )}
+            </div>
 
-                <span>
-                  {currentCandidate.vessel_type}
-                </span>
-
-                <span>
-                  Flag:{" "}
-                  {currentCandidate.flag}
-                </span>
-
+            {candidateLoading && (
+              <div className="loading-state">
+                Generating / ranking
+                candidates…
               </div>
+            )}
 
-
-              <div className="subheading">
-                Why this score?
-              </div>
-
-
-              <div className="feature-list">
-
-                {Object.entries(
-                  currentCandidate.features || {}
-                ).map(
-                  ([key, value]) => {
-
-                    const label = key
-                      .replaceAll("_", " ")
-                      .replace(
-                        /\b\w/g,
-                        (letter) =>
-                          letter.toUpperCase()
-                      );
-
-                    return (
-                      <div
-                        className="feature-row"
-                        key={key}
-                      >
-
-                        <span>
-                          {label}
-                        </span>
-
-
-                        <div className="feature-score">
-
-                          <div className="feature-bar">
-
-                            <div
-                              style={{
-                                width: `${
-                                  clamp(
-                                    value
-                                  ) * 100
-                                }%`,
-                              }}
-                            />
-
-                          </div>
-
-
-                          <strong>
-                            {formatPercent(value)}
-                          </strong>
-
-                        </div>
-
-                      </div>
-                    );
+            {!candidateLoading &&
+              candidateError && (
+                <CandidateBlocked
+                  reason={
+                    candidateError
                   }
-                )}
+                  details={
+                    candidateBlockedDetails
+                  }
+                />
+              )}
 
-              </div>
+            {!candidateLoading &&
+              !candidateError &&
+              candidateRun && (
+                <CandidateList
+                  candidates={
+                    candidateRun.candidates ||
+                    []
+                  }
+                  selectedCandidateId={
+                    selectedCandidateId
+                  }
+                  onSelect={
+                    handleCandidateSelect
+                  }
+                />
+              )}
 
+            {!candidateLoading &&
+              !candidateError &&
+              !candidateRun && (
+                <div className="empty-state">
+                  Load AIS, run drift,
+                  then rank candidates.
+                  The frontend does not
+                  invent vessels when AIS
+                  data is absent.
+                </div>
+              )}
+          </section>
 
-              {/* -------------------------------------------
-                  EVIDENCE TIMELINE
-              ------------------------------------------- */}
+          {/* -------------------------------------------------------------- */}
+          {/* EVIDENCE + TIMELINE                                            */}
+          {/* -------------------------------------------------------------- */}
 
-              {Array.isArray(
-                currentCandidate.evidence_timeline
-              ) &&
-                currentCandidate.evidence_timeline.length >
-                  0 && (
-                  <div className="candidate-timeline">
+          {selectedCandidate && (
+            <section className="investigation-sidebar-section">
+              {candidateDetailLoading && (
+                <div className="loading-state">
+                  Loading candidate
+                  evidence…
+                </div>
+              )}
 
-                    <div className="subheading">
-                      Evidence Timeline
-                    </div>
+              <EvidenceDrawer
+                candidate={
+                  selectedCandidate
+                }
+              />
 
-
-                    {currentCandidate.evidence_timeline.map(
-                      (event, index) => (
-                        <div
-                          className={`evidence-event ${
-                            event?.highlight
-                              ? "highlight"
-                              : ""
-                          }`}
-                          key={`${event?.time}-${index}`}
-                        >
-
-                          <div className="event-time">
-                            {event?.time}
-                          </div>
-
-                          <div className="event-dot" />
-
-                          <div className="event-label">
-                            {event?.label}
-                          </div>
-
-                        </div>
-                      )
-                    )}
-
-                  </div>
-                )}
-
+              <AISTimeline
+                timestamps={
+                  selectedTimeline
+                }
+                selectedIndex={
+                  timelineIndex
+                }
+                onChange={
+                  setTimelineIndex
+                }
+              />
             </section>
           )}
 
-
-          {/* =================================================
-              SCIENTIFIC DISCLAIMER
-          ================================================= */}
+          {/* -------------------------------------------------------------- */}
+          {/* DISCLAIMER                                                      */}
+          {/* -------------------------------------------------------------- */}
 
           <div className="investigation-disclaimer">
-
             <strong>
               Investigation support only
             </strong>
 
             <span>
-              {spillData?.disclaimers?.attribution ||
+              {candidateRun?.disclaimer ||
                 "Candidate rankings support investigation and do not constitute legal attribution."}
             </span>
-
           </div>
-
         </aside>
-
       </div>
     </div>
   );

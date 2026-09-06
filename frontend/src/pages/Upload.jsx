@@ -1,305 +1,507 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { uploadSpill, detectSpill } from "../services/api";
+import {
+  createDetection,
+  getApiError,
+  getScenes,
+  pollDetection,
+  uploadSpill,
+} from "../services/api";
+
+import {
+  saveInvestigationData,
+} from "../utils/investigation";
+
+const MAX_MB = 250;
 
 function Upload() {
   const navigate = useNavigate();
 
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [scenes, setScenes] =
+    useState([]);
 
-  const demoInvestigationId = "INV-2026-0042";
+  const [sceneId, setSceneId] =
+    useState("");
 
-  const handleFileChange = (event) => {
-    const file = event.target.files?.[0];
+  const [selectedFile, setSelectedFile] =
+    useState(null);
 
-    if (file) {
+  const [loading, setLoading] =
+    useState(false);
+
+  const [stage, setStage] =
+    useState("");
+
+  const [error, setError] =
+    useState("");
+
+
+  useEffect(() => {
+    let active = true;
+
+    getScenes()
+      .then((data) => {
+        if (!active) return;
+
+        const list =
+          data?.scenes || [];
+
+        setScenes(list);
+
+        if (
+          list[0]?.scene_id
+        ) {
+          setSceneId(
+            list[0].scene_id
+          );
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setScenes([]);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+
+  const handleFileChange =
+    (event) => {
+      const file =
+        event.target.files?.[0];
+
+      if (!file) return;
+
+      const extension =
+        file.name
+          .toLowerCase()
+          .split(".")
+          .pop();
+
+      if (
+        !["tif", "tiff"].includes(
+          extension
+        )
+      ) {
+        setSelectedFile(null);
+
+        setError(
+          "Please select a GeoTIFF file (.tif or .tiff)."
+        );
+
+        return;
+      }
+
+      if (
+        file.size >
+        MAX_MB * 1024 * 1024
+      ) {
+        setSelectedFile(null);
+
+        setError(
+          `File is larger than ${MAX_MB} MB.`
+        );
+
+        return;
+      }
+
       setSelectedFile(file);
       setError("");
+    };
+
+
+  const handleStart = async () => {
+    if (
+      !selectedFile ||
+      loading
+    ) {
+      return;
     }
-  };
 
-  // ----------------------------------------------------------
-  // Demo Case
-  // ----------------------------------------------------------
+    if (!sceneId) {
+      setError(
+        "Select a SAR scene before starting detection."
+      );
 
-  const handleDemoCase = () => {
-    setError("");
-    navigate(`/investigation/${demoInvestigationId}`);
-  };
-
-  // ----------------------------------------------------------
-  // Real SAR Upload → Detection
-  // ----------------------------------------------------------
-
-  const handleContinue = async () => {
-    if (!selectedFile || loading) return;
+      return;
+    }
 
     try {
       setLoading(true);
       setError("");
 
-      // Step 1: Upload SAR file
-      const uploadResult = await uploadSpill(selectedFile);
-
-      console.log("SAR upload successful:", uploadResult);
-
-      // Step 2: Run spill detection
-      const detectionResult = await detectSpill(
-        uploadResult.spill_id
+      /*
+       * STEP 1
+       */
+      setStage(
+        "Uploading SAR file…"
       );
 
-      console.log("Spill detection successful:", detectionResult);
+      const uploadResult =
+        await uploadSpill(
+          selectedFile
+        );
 
-      // Step 3: Open investigation
-      navigate(`/investigation/${uploadResult.spill_id}`);
+      if (!uploadResult?.spill_id) {
+        throw new Error(
+          "Backend upload succeeded but did not return a spill_id."
+        );
+      }
+
+
+      /*
+       * IMPORTANT:
+       *
+       * Everything after this point
+       * is stored under REAL spill_id.
+       */
+      saveInvestigationData(
+        uploadResult.spill_id,
+        {
+          upload:
+            uploadResult,
+
+          sceneId,
+
+          fileName:
+            selectedFile.name,
+        }
+      );
+
+
+      /*
+       * STEP 2
+       */
+      setStage(
+        "Starting real detector…"
+      );
+
+      const job =
+        await createDetection({
+          sceneId,
+
+          filePath:
+            uploadResult.saved_path,
+        });
+
+
+      saveInvestigationData(
+        uploadResult.spill_id,
+        {
+          upload:
+            uploadResult,
+
+          sceneId,
+
+          fileName:
+            selectedFile.name,
+
+          detection:
+            job,
+        }
+      );
+
+
+      /*
+       * STEP 3
+       */
+      setStage(
+        "Waiting for detector…"
+      );
+
+      const finalJob =
+        await pollDetection(
+          job.job_id,
+          {
+            onUpdate: (
+              next
+            ) => {
+              saveInvestigationData(
+                uploadResult.spill_id,
+                {
+                  upload:
+                    uploadResult,
+
+                  sceneId,
+
+                  fileName:
+                    selectedFile.name,
+
+                  detection:
+                    next,
+                }
+              );
+
+              setStage(
+                next.status ===
+                  "PROCESSING"
+                  ? "Detector is processing…"
+                  : next.message ||
+                    next.status
+              );
+            },
+          }
+        );
+
+
+      saveInvestigationData(
+        uploadResult.spill_id,
+        {
+          upload:
+            uploadResult,
+
+          sceneId,
+
+          fileName:
+            selectedFile.name,
+
+          detection:
+            finalJob,
+        }
+      );
+
+
+      /*
+       * IMPORTANT:
+       *
+       * Route uses spill_id,
+       * NOT scene_id.
+       */
+      navigate(
+        `/investigation/${encodeURIComponent(
+          uploadResult.spill_id
+        )}`
+      );
     } catch (err) {
-      console.error("SAR processing failed:", err);
+      const apiErr =
+        getApiError(err);
 
-      const message =
-        err.response?.data?.detail ||
-        err.response?.data?.message ||
-        err.message ||
-        "Unable to process SAR scene.";
+      setError(
+        apiErr.message
+      );
 
-      setError(message);
+      setStage("");
     } finally {
       setLoading(false);
     }
   };
 
+
   return (
     <section className="upload-page">
+
       <div className="page-header">
         <div>
-          <p className="eyebrow">SPILLTRACE / DATA INGESTION</p>
 
-          <h1>Upload SAR Scene</h1>
+          <p className="eyebrow">
+            SPILLTRACE / DATA INGESTION
+          </p>
+
+          <h1>
+            Upload SAR Scene
+          </h1>
 
           <p className="page-description">
-            Start a marine oil-spill investigation by selecting a SAR scene
-            or loading the prepared demonstration scenario.
+            Register a SAR file, connect it to an available scene, and start the backend detector. The browser never performs ML inference itself.
           </p>
+
         </div>
       </div>
 
+
       <div className="upload-grid">
 
-        {/* ==================================================
-            Upload Card
-        ================================================== */}
-
         <div className="upload-card">
+
           <div className="upload-icon">
             ↑
           </div>
 
-          <h2>Select SAR Image</h2>
+          <h2>
+            Select SAR Image
+          </h2>
 
           <p>
-            Upload a Sentinel-1 SAR image for investigation.
+            GeoTIFF (.tif / .tiff) is required by the current real detector.
           </p>
 
-          <label className="file-picker">
+
+          <label
+            className="metadata-item"
+            style={{
+              display: "block",
+              marginBottom: 12,
+            }}
+          >
             <span>
-              {selectedFile ? "Change SAR File" : "Choose SAR File"}
+              SAR Scene
+            </span>
+
+            <select
+              value={sceneId}
+              onChange={(e) =>
+                setSceneId(
+                  e.target.value
+                )
+              }
+              disabled={
+                loading ||
+                scenes.length === 0
+              }
+              style={{
+                width: "100%",
+                padding: "8px",
+                background:
+                  "#0a1927",
+                color: "inherit",
+                border:
+                  "1px solid #35506a",
+              }}
+            >
+
+              {scenes.length ===
+                0 && (
+                <option value="">
+                  No backend scenes available
+                </option>
+              )}
+
+              {scenes.map(
+                (scene) => (
+                  <option
+                    key={
+                      scene.scene_id
+                    }
+                    value={
+                      scene.scene_id
+                    }
+                  >
+                    {
+                      scene.scene_id
+                    }{" "}
+                    —{" "}
+                    {
+                      scene.source ||
+                      "Unknown source"
+                    }
+                  </option>
+                )
+              )}
+
+            </select>
+          </label>
+
+
+          <label className="file-picker">
+
+            <span>
+              {selectedFile
+                ? "Change File"
+                : "Choose GeoTIFF"}
             </span>
 
             <input
               type="file"
-              accept=".tif,.tiff,.zip"
-              onChange={handleFileChange}
-              disabled={loading}
+              accept=".tif,.tiff,image/tiff"
+              onChange={
+                handleFileChange
+              }
+              disabled={
+                loading
+              }
             />
+
           </label>
+
 
           {selectedFile && (
             <div className="selected-file">
+
               <div>
+
                 <span className="file-label">
                   SELECTED FILE
                 </span>
 
                 <strong>
-                  {selectedFile.name}
+                  {
+                    selectedFile.name
+                  }
                 </strong>
+
+                <small>
+                  {(
+                    selectedFile.size /
+                    1024 /
+                    1024
+                  ).toFixed(2)}{" "}
+                  MB
+                </small>
+
               </div>
 
               <span className="file-status">
                 READY
               </span>
+
             </div>
           )}
 
-          {/* Error */}
+
+          {stage && (
+            <div className="loading-state">
+              {stage}
+            </div>
+          )}
+
+
           {error && (
             <div className="upload-error">
-              <strong>Processing failed</strong>
 
-              <p>{error}</p>
+              <strong>
+                Processing failed
+              </strong>
+
+              <p>
+                {error}
+              </p>
+
+              <small>
+                If the backend reports detector import/model errors, the ML runtime on the backend still needs to be completed.
+              </small>
+
             </div>
           )}
+
 
           <button
             className="primary-button"
-            onClick={handleContinue}
-            disabled={!selectedFile || loading}
+            onClick={
+              handleStart
+            }
+            disabled={
+              !selectedFile ||
+              !sceneId ||
+              loading
+            }
           >
             {loading
-              ? "Processing SAR Scene..."
-              : "Continue Investigation"}
+              ? "Processing…"
+              : "Upload & Run Detection"}
           </button>
+
 
           <p className="upload-note">
-            Supported formats: GeoTIFF (.tif / .tiff) or packaged SAR data.
-          </p>
-        </div>
-
-
-        {/* ==================================================
-            Demo Case Card
-        ================================================== */}
-
-        <div className="demo-card">
-          <div className="demo-header">
-            <span className="status-dot"></span>
-
-            <span>DEMO SCENARIO AVAILABLE</span>
-          </div>
-
-          <h2>
-            Historical Oil Spill Reconstruction
-          </h2>
-
-          <p className="demo-description">
-            Load the prepared Arabian Sea scenario to explore the complete
-            SpillTrace investigation workflow.
+            Upload response → server saved_path → real detection job → status polling → investigation workspace.
           </p>
 
-          <div className="demo-details">
-
-            <div className="detail-row">
-              <span>Investigation</span>
-
-              <strong>
-                {demoInvestigationId}
-              </strong>
-            </div>
-
-            <div className="detail-row">
-              <span>Region</span>
-
-              <strong>
-                Arabian Sea
-              </strong>
-            </div>
-
-            <div className="detail-row">
-              <span>SAR Source</span>
-
-              <strong>
-                Copernicus Sentinel-1
-              </strong>
-            </div>
-
-            <div className="detail-row">
-              <span>Scenario Date</span>
-
-              <strong>
-                31 Aug 2026
-              </strong>
-            </div>
-
-          </div>
-
-          <button
-            className="secondary-button"
-            onClick={handleDemoCase}
-            disabled={loading}
-          >
-            Load Demo Investigation →
-          </button>
         </div>
       </div>
 
-
-      {/* ==================================================
-          Workflow
-      ================================================== */}
-
-      <div className="workflow-section">
-        <div className="workflow-header">
-          <div>
-            <p className="eyebrow">
-              INVESTIGATION WORKFLOW
-            </p>
-
-            <h2>
-              From SAR Scene to Source Attribution
-            </h2>
-          </div>
-        </div>
-
-        <div className="workflow-steps">
-
-          <div className="workflow-step active">
-            <span>01</span>
-
-            <div>
-              <strong>SAR Detection</strong>
-
-              <p>
-                Identify potential oil slick signature.
-              </p>
-            </div>
-          </div>
-
-          <div className="workflow-line"></div>
-
-          <div className="workflow-step">
-            <span>02</span>
-
-            <div>
-              <strong>Origin Hindcast</strong>
-
-              <p>
-                Estimate the likely spill origin.
-              </p>
-            </div>
-          </div>
-
-          <div className="workflow-line"></div>
-
-          <div className="workflow-step">
-            <span>03</span>
-
-            <div>
-              <strong>AIS Analysis</strong>
-
-              <p>
-                Filter vessels in the origin window.
-              </p>
-            </div>
-          </div>
-
-          <div className="workflow-line"></div>
-
-          <div className="workflow-step">
-            <span>04</span>
-
-            <div>
-              <strong>Candidate Ranking</strong>
-
-              <p>
-                Rank candidates using explainable evidence.
-              </p>
-            </div>
-          </div>
-
-        </div>
-      </div>
     </section>
   );
 }

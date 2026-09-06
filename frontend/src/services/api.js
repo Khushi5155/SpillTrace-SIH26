@@ -1,16 +1,13 @@
 import axios from "axios";
 
-// ============================================================
-// SpillTrace API Configuration
-// ============================================================
-
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
+const AIS_TRACKS_URL =
+  import.meta.env.VITE_AIS_TRACKS_URL || "";
 
-// ============================================================
-// Axios Instance
-// ============================================================
+const CANDIDATES_URL =
+  import.meta.env.VITE_CANDIDATES_URL || "";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -20,841 +17,481 @@ const api = axios.create({
   timeout: 30000,
 });
 
-
-// ============================================================
-// HELPER — Encode URL Parameters
-// ============================================================
-
 const encodeId = (value) =>
   encodeURIComponent(String(value));
 
-
-// ============================================================
-// HEALTH CHECK
-// ============================================================
-
-/**
- * Backend:
- * GET /api/health
- */
-export const checkHealth = async () => {
-  try {
-    const response = await api.get("/api/health");
-
+export const getApiError = (error) => {
+  if (!error) {
     return {
-      success: true,
-      data: response.data,
-    };
-  } catch (error) {
-    console.error(
-      "SpillTrace backend health check failed:",
-      error
-    );
-
-    return {
-      success: false,
-      error: getApiError(error),
+      status: null,
+      code: null,
+      message: "Unknown error.",
+      details: null,
+      isNetworkError: false,
+      isTimeout: false,
     };
   }
+
+  const isTimeout =
+    error.code === "ECONNABORTED" ||
+    error.code === "ETIMEDOUT";
+
+  const isNetworkError =
+    !error.response && !isTimeout;
+
+  if (isTimeout) {
+    return {
+      status: null,
+      code: "ERR_TIMEOUT",
+      message:
+        "The request timed out. The backend may be slow or unreachable.",
+      details: null,
+      isNetworkError: false,
+      isTimeout: true,
+    };
+  }
+
+  if (isNetworkError) {
+    return {
+      status: null,
+      code: "ERR_NETWORK",
+      message:
+        "Could not reach the SpillTrace backend. Check that it is running and VITE_API_BASE_URL is correct.",
+      details: null,
+      isNetworkError: true,
+      isTimeout: false,
+    };
+  }
+
+  const status = error.response?.status ?? null;
+  const data = error.response?.data ?? {};
+  const detail = data?.detail;
+
+  if (detail && typeof detail === "object") {
+    return {
+      status,
+      code: detail.code ?? detail.error ?? null,
+      message: detail.message ?? "Something went wrong.",
+      details: detail.details ?? null,
+      isNetworkError: false,
+      isTimeout: false,
+    };
+  }
+
+  if (typeof detail === "string") {
+    return {
+      status,
+      code: data?.error ?? null,
+      message: detail,
+      details: data?.details ?? null,
+      isNetworkError: false,
+      isTimeout: false,
+    };
+  }
+
+  if (data?.error && typeof data.error === "string") {
+    return {
+      status,
+      code: data.error,
+      message: data.message ?? "Something went wrong.",
+      details: data.details ?? null,
+      isNetworkError: false,
+      isTimeout: false,
+    };
+  }
+
+  return {
+    status,
+    code: null,
+    message:
+      error.message || "Something went wrong.",
+    details: null,
+    isNetworkError: false,
+    isTimeout: false,
+  };
 };
 
 
-// ============================================================
-// SCENE APIs
-// ============================================================
+/* ---------------- HEALTH ---------------- */
 
-/**
- * Get all available SAR scenes.
- *
- * Backend:
- * GET /api/scenes
- */
-export const getScenes = async () => {
-  try {
-    const response = await api.get("/api/scenes");
-
-    return response.data;
-  } catch (error) {
-    console.error(
-      "Failed to fetch scenes:",
-      error
-    );
-
-    throw error;
-  }
-};
+export const checkHealth = async () =>
+  (await api.get("/api/health")).data;
 
 
-/**
- * Get scene manifest + metadata.
- *
- * Backend:
- * GET /api/scenes/{scene_id}/manifest
- */
-export const getScene = async (sceneId) => {
+/* ---------------- SCENES ---------------- */
+
+export const getScenes = async () =>
+  (await api.get("/api/scenes")).data;
+
+export const getSceneManifest = async (sceneId) => {
   if (!sceneId) {
     throw new Error("Scene ID is required.");
   }
 
-  try {
-    const response = await api.get(
+  return (
+    await api.get(
       `/api/scenes/${encodeId(sceneId)}/manifest`
-    );
-
-    return response.data;
-  } catch (error) {
-    console.error(
-      `Failed to fetch scene ${sceneId}:`,
-      error
-    );
-
-    throw error;
-  }
+    )
+  ).data;
 };
 
-
-/**
- * Get scene compatibility information.
- *
- * Backend:
- * GET /api/scenes/{scene_id}/compatibility
- */
-export const getSceneCompatibility = async (
-  sceneId
-) => {
+export const getSceneCompatibility = async (sceneId) => {
   if (!sceneId) {
     throw new Error("Scene ID is required.");
   }
 
-  try {
-    const response = await api.get(
+  return (
+    await api.get(
       `/api/scenes/${encodeId(sceneId)}/compatibility`
-    );
-
-    return response.data;
-  } catch (error) {
-    console.error(
-      `Failed to fetch compatibility for ${sceneId}:`,
-      error
-    );
-
-    throw error;
-  }
+    )
+  ).data;
 };
 
 
-// ============================================================
-// DAY 6 — DETECTION
-// ============================================================
+/* ---------------- SPILL ---------------- */
 
-/**
- * Start SAR oil-spill detection.
- *
- * Backend:
- * POST /api/v1/detections
- *
- * Content-Type:
- * multipart/form-data
- *
- * Request:
- * - file
- * - acquisition_start_utc (optional)
- * - acquisition_end_utc (optional)
- * - source (optional)
- *
- * Response:
- * {
- *   job_id,
- *   status,
- *   progress,
- *   message
- * }
- */
-export const startDetection = async ({
-  file,
-  acquisition_start_utc,
-  acquisition_end_utc,
-  source = "sentinel-1",
-} = {}) => {
+export const uploadSpill = async (file) => {
   if (!file) {
-    throw new Error(
-      "SAR image file is required."
-    );
+    throw new Error("A file is required.");
   }
 
   const formData = new FormData();
-
   formData.append("file", file);
 
-  if (acquisition_start_utc) {
-    formData.append(
-      "acquisition_start_utc",
-      acquisition_start_utc
-    );
-  }
-
-  if (acquisition_end_utc) {
-    formData.append(
-      "acquisition_end_utc",
-      acquisition_end_utc
-    );
-  }
-
-  if (source) {
-    formData.append(
-      "source",
-      source
-    );
-  }
-
-  try {
-    const response = await api.post(
-      "/api/v1/detections",
+  return (
+    await api.post(
+      "/api/spills/upload",
       formData,
       {
         headers: {
-          "Content-Type":
-            "multipart/form-data",
+          "Content-Type": "multipart/form-data",
         },
       }
-    );
+    )
+  ).data;
+};
 
-    return response.data;
-  } catch (error) {
-    console.error(
-      "SAR detection start failed:",
-      error
-    );
-
-    throw error;
+export const getSpill = async (spillId) => {
+  if (!spillId) {
+    throw new Error("Spill ID is required.");
   }
+
+  return (
+    await api.get(
+      `/api/spills/${encodeId(spillId)}`
+    )
+  ).data;
 };
 
 
-/**
- * Get detection job status.
- *
- * Backend:
- * GET /api/v1/detections/{job_id}
- *
- * Possible statuses:
- * queued
- * processing
- * completed
- * failed
- * blocked
- */
-export const getDetectionStatus = async (
-  jobId
-) => {
+/* ---------------- DEMO DETECTION ---------------- */
+
+export const detectSpillMock = async (spillId) => {
+  if (!spillId) {
+    throw new Error("Spill ID is required.");
+  }
+
+  return (
+    await api.post(
+      `/api/spills/${encodeId(spillId)}/detect`
+    )
+  ).data;
+};
+
+
+/* ---------------- REAL DETECTION ---------------- */
+
+export const createDetection = async ({
+  sceneId,
+  filePath,
+}) => {
+  if (!sceneId || !filePath) {
+    throw new Error(
+      "sceneId and server-side filePath are required."
+    );
+  }
+
+  return (
+    await api.post(
+      "/api/detections",
+      {
+        scene_id: sceneId,
+        file_path: filePath,
+      }
+    )
+  ).data;
+};
+
+export const getDetection = async (jobId) => {
   if (!jobId) {
     throw new Error(
       "Detection job ID is required."
     );
   }
 
-  try {
-    const response = await api.get(
-      `/api/v1/detections/${encodeId(jobId)}`
-    );
-
-    return response.data;
-  } catch (error) {
-    console.error(
-      `Failed to fetch detection status for ${jobId}:`,
-      error
-    );
-
-    throw error;
-  }
-};
-
-
-// ============================================================
-// DAY 6 — SPILL RESULT
-// ============================================================
-
-/**
- * Get detected spill result.
- *
- * Backend:
- * GET /api/v1/spills/{spill_id}
- *
- * Returns:
- * - centroid
- * - area_km2
- * - perimeter_m
- * - confidence
- * - geometry
- * - acquisition timestamps
- * - detector metadata
- */
-export const getSpill = async (
-  spillId
-) => {
-  if (!spillId) {
-    throw new Error(
-      "Spill ID is required."
-    );
-  }
-
-  try {
-    const response = await api.get(
-      `/api/v1/spills/${encodeId(spillId)}`
-    );
-
-    return response.data;
-  } catch (error) {
-    console.error(
-      `Failed to fetch spill ${spillId}:`,
-      error
-    );
-
-    throw error;
-  }
-};
-
-
-// ============================================================
-// DAY 6 — SPILL GEOMETRY
-// ============================================================
-
-/**
- * Get detected slick geometry.
- *
- * Backend:
- * GET /api/v1/spills/{spill_id}/geometry
- *
- * Expected:
- * GeoJSON geometry / GeoJSON response.
- */
-export const getSpillGeometry = async (
-  spillId
-) => {
-  if (!spillId) {
-    throw new Error(
-      "Spill ID is required."
-    );
-  }
-
-  try {
-    const response = await api.get(
-      `/api/v1/spills/${encodeId(spillId)}/geometry`
-    );
-
-    return response.data;
-  } catch (error) {
-    console.error(
-      `Failed to fetch spill geometry for ${spillId}:`,
-      error
-    );
-
-    throw error;
-  }
-};
-
-
-// ============================================================
-// DAY 6 — SAR ARTIFACTS
-// ============================================================
-
-/**
- * Get SAR source image, preview,
- * detection mask and slick polygon references.
- *
- * Backend:
- * GET /api/v1/spills/{spill_id}/artifacts
- *
- * Returns:
- * {
- *   source_image,
- *   source_preview,
- *   detection_mask,
- *   slick_polygon,
- *   crs
- * }
- */
-export const getSpillArtifacts = async (
-  spillId
-) => {
-  if (!spillId) {
-    throw new Error(
-      "Spill ID is required."
-    );
-  }
-
-  try {
-    const response = await api.get(
-      `/api/v1/spills/${encodeId(spillId)}/artifacts`
-    );
-
-    return response.data;
-  } catch (error) {
-    console.error(
-      `Failed to fetch SAR artifacts for ${spillId}:`,
-      error
-    );
-
-    throw error;
-  }
-};
-
-
-// ============================================================
-// DAY 6 — HINDCAST
-// ============================================================
-
-/**
- * Run backward drift hindcast.
- *
- * Backend:
- * POST /api/v1/spills/{spill_id}/hindcast
- *
- * Payload example:
- * {
- *   duration_hours: 24,
- *   time_step_minutes: 60,
- *   wind_speed_mps: 5.2,
- *   wind_direction_deg: 270,
- *   current_speed_mps: 0.6,
- *   current_direction_deg: 90,
- *   wind_drift_coefficient: 0.03,
- *   current_coefficient: 1.0,
- *   particle_count: 500,
- *   uncertainty_diffusion_m: 250,
- *   random_seed: 42,
- *   mode: "analyst_parameter_driven"
- * }
- */
-export const runHindcast = async (
-  spillId,
-  payload
-) => {
-  if (!spillId) {
-    throw new Error(
-      "Spill ID is required."
-    );
-  }
-
-  if (!payload) {
-    throw new Error(
-      "Hindcast payload is required."
-    );
-  }
-
-  try {
-    const response = await api.post(
-      `/api/v1/spills/${encodeId(spillId)}/hindcast`,
-      payload
-    );
-
-    return response.data;
-  } catch (error) {
-    console.error(
-      `Hindcast failed for ${spillId}:`,
-      error
-    );
-
-    throw error;
-  }
-};
-
-
-// ============================================================
-// DAY 6 — FORECAST
-// ============================================================
-
-/**
- * Run forward drift forecast.
- *
- * Backend:
- * POST /api/v1/spills/{spill_id}/forecast
- *
- * Uses the same parameter-driven payload
- * as hindcast.
- */
-export const runForecast = async (
-  spillId,
-  payload
-) => {
-  if (!spillId) {
-    throw new Error(
-      "Spill ID is required."
-    );
-  }
-
-  if (!payload) {
-    throw new Error(
-      "Forecast payload is required."
-    );
-  }
-
-  try {
-    const response = await api.post(
-      `/api/v1/spills/${encodeId(spillId)}/forecast`,
-      payload
-    );
-
-    return response.data;
-  } catch (error) {
-    console.error(
-      `Forecast failed for ${spillId}:`,
-      error
-    );
-
-    throw error;
-  }
-};
-
-
-// ============================================================
-// DAY 6 — SPILL COMPATIBILITY
-// ============================================================
-
-/**
- * Check whether AIS attribution is compatible
- * with the current spill investigation.
- *
- * Backend:
- * GET /api/v1/spills/{spill_id}/compatibility
- *
- * Successful response:
- * {
- *   compatible: true,
- *   status: "passed",
- *   ...
- * }
- *
- * Failed compatibility may return:
- * HTTP 409 Conflict
- */
-export const getSpillCompatibility = async (
-  spillId
-) => {
-  if (!spillId) {
-    throw new Error(
-      "Spill ID is required."
-    );
-  }
-
-  try {
-    const response = await api.get(
-      `/api/v1/spills/${encodeId(spillId)}/compatibility`
-    );
-
-    return response.data;
-  } catch (error) {
-    console.error(
-      `Failed to fetch spill compatibility for ${spillId}:`,
-      error
-    );
-
-    // IMPORTANT:
-    // Do not convert 409 into a generic failure.
-    // Investigation.jsx can use this to show
-    // the explicit attribution-blocked state.
-    throw error;
-  }
-};
-
-
-// ============================================================
-// DAY 6 — AIS TRACKS
-// ============================================================
-
-/**
- * Query real AIS vessel tracks.
- *
- * Backend:
- * GET /api/v1/ais/tracks
- *
- * Query parameters:
- * - start_utc
- * - end_utc
- * - min_lon
- * - min_lat
- * - max_lon
- * - max_lat
- * - spill_id
- *
- * Example:
- *
- * queryAisTracks({
- *   spill_id: "spill_01J...",
- *   start_utc: "2026-09-04T12:00:00Z",
- *   end_utc: "2026-09-05T12:00:00Z",
- *   min_lon: 72.0,
- *   min_lat: 18.0,
- *   max_lon: 73.0,
- *   max_lat: 19.0
- * });
- */
-export const queryAisTracks = async (
-  params = {}
-) => {
-  try {
-    const response = await api.get(
-      "/api/v1/ais/tracks",
-      {
-        params: cleanQueryParams(params),
-      }
-    );
-
-    return response.data;
-  } catch (error) {
-    console.error(
-      "AIS tracks API failed:",
-      error
-    );
-
-    throw error;
-  }
-};
-
-
-// ============================================================
-// QUERY PARAM CLEANER
-// ============================================================
-
-/**
- * Removes undefined/null/empty values before
- * sending query parameters to FastAPI.
- */
-const cleanQueryParams = (
-  params = {}
-) => {
-  return Object.fromEntries(
-    Object.entries(params).filter(
-      ([, value]) =>
-        value !== undefined &&
-        value !== null &&
-        value !== ""
+  return (
+    await api.get(
+      `/api/detections/${encodeId(jobId)}`
     )
-  );
+  ).data;
 };
 
+export const pollDetection = async (
+  jobId,
+  {
+    onUpdate,
+    intervalMs = 1500,
+    timeoutMs = 120000,
+  } = {}
+) => {
+  const started = Date.now();
 
-// ============================================================
-// OPTIONAL — LOAD COMPLETE SPILL CONTEXT
-// ============================================================
+  while (true) {
+    const job = await getDetection(jobId);
 
-/**
- * Convenience helper for Investigation.jsx.
- *
- * Loads:
- * - spill metadata
- * - SAR artifacts
- * - compatibility
- *
- * IMPORTANT:
- * This does NOT run hindcast/forecast/AIS.
- * Those remain explicit operations.
- */
-export const getSpillInvestigationContext =
-  async (spillId) => {
-    if (!spillId) {
+    onUpdate?.(job);
+
+    if (
+      job.status === "COMPLETED" ||
+      job.status === "FAILED"
+    ) {
+      return job;
+    }
+
+    if (
+      Date.now() - started >= timeoutMs
+    ) {
       throw new Error(
-        "Spill ID is required."
+        "Detection job polling timed out."
       );
     }
 
-    const [
-      spill,
-      artifacts,
-      compatibility,
-    ] = await Promise.allSettled([
-      getSpill(spillId),
-      getSpillArtifacts(spillId),
-      getSpillCompatibility(spillId),
-    ]);
-
-    return {
-      spill:
-        spill.status === "fulfilled"
-          ? spill.value
-          : null,
-
-      artifacts:
-        artifacts.status === "fulfilled"
-          ? artifacts.value
-          : null,
-
-      compatibility:
-        compatibility.status ===
-        "fulfilled"
-          ? compatibility.value
-          : null,
-
-      errors: {
-        spill:
-          spill.status === "rejected"
-            ? getApiError(spill.reason)
-            : null,
-
-        artifacts:
-          artifacts.status === "rejected"
-            ? getApiError(
-                artifacts.reason
-              )
-            : null,
-
-        compatibility:
-          compatibility.status ===
-          "rejected"
-            ? getApiError(
-                compatibility.reason
-              )
-            : null,
-      },
-    };
-  };
-
-
-// ============================================================
-// API ERROR NORMALIZATION
-// ============================================================
-
-/**
- * Convert Axios/FastAPI errors into
- * a consistent frontend-friendly object.
- *
- * Supports Day-6 backend format:
- *
- * {
- *   error: {
- *     code,
- *     message,
- *     details,
- *     request_id,
- *     timestamp_utc
- *   }
- * }
- *
- * Also supports older FastAPI responses:
- *
- * {
- *   detail: ...
- * }
- */
-export const getApiError = (
-  error
-) => {
-  if (!error) {
-    return {
-      status: null,
-      code: null,
-      message: "Unknown error",
-      details: null,
-      request_id: null,
-      timestamp_utc: null,
-      run_id: null,
-    };
+    await new Promise((resolve) =>
+      setTimeout(resolve, intervalMs)
+    );
   }
-
-  const status =
-    error.response?.status ?? null;
-
-  const responseData =
-    error.response?.data ?? null;
-
-  // ----------------------------------------------------------
-  // Day-6 structured error
-  // ----------------------------------------------------------
-
-  const structuredError =
-    responseData?.error;
-
-  if (
-    structuredError &&
-    typeof structuredError ===
-      "object"
-  ) {
-    return {
-      status,
-
-      code:
-        structuredError.code ??
-        null,
-
-      message:
-        structuredError.message ??
-        "Something went wrong.",
-
-      details:
-        structuredError.details ??
-        null,
-
-      request_id:
-        structuredError.request_id ??
-        null,
-
-      timestamp_utc:
-        structuredError.timestamp_utc ??
-        null,
-
-      run_id:
-        responseData?.run_id ??
-        null,
-    };
-  }
-
-  // ----------------------------------------------------------
-  // Older / FastAPI-style error
-  // ----------------------------------------------------------
-
-  let message =
-    responseData?.message ??
-    responseData?.detail ??
-    error.message ??
-    "Something went wrong.";
-
-  let details =
-    responseData?.details ??
-    null;
-
-  // FastAPI HTTPException detail
-  // may itself be an object.
-  if (
-    typeof message === "object"
-  ) {
-    details =
-      message.details ??
-      details;
-
-    message =
-      message.message ??
-      message.error ??
-      JSON.stringify(message);
-  }
-
-  return {
-    status,
-
-    code:
-      responseData?.code ??
-      null,
-
-    message,
-
-    details,
-
-    request_id:
-      responseData?.request_id ??
-      null,
-
-    timestamp_utc:
-      responseData?.timestamp_utc ??
-      null,
-
-    run_id:
-      responseData?.run_id ??
-      null,
-  };
 };
 
 
-// ============================================================
-// DEFAULT EXPORT
-// ============================================================
+/* ---------------- DRIFT ---------------- */
+
+export const runDrift = async ({
+  direction,
+  spillId,
+  acquisitionTimeUtc,
+  slickGeojson,
+  parameters,
+}) => {
+  if (
+    !["hindcast", "forecast"].includes(direction)
+  ) {
+    throw new Error(
+      'direction must be "hindcast" or "forecast".'
+    );
+  }
+
+  if (!slickGeojson) {
+    throw new Error(
+      "slick_geojson is required."
+    );
+  }
+
+  return (
+    await api.post(
+      `/api/drift/${direction}`,
+      {
+        spill_id: spillId ?? undefined,
+        acquisition_time_utc:
+          acquisitionTimeUtc ?? undefined,
+        slick_geojson: slickGeojson,
+        parameters,
+      }
+    )
+  ).data;
+};
+
+export const runHindcast = (args) =>
+  runDrift({
+    ...args,
+    direction: "hindcast",
+  });
+
+export const runForecast = (args) =>
+  runDrift({
+    ...args,
+    direction: "forecast",
+  });
+
+
+/* ---------------- AIS ---------------- */
+
+export const getAisTracks = async (spillId) => {
+  if (!spillId) {
+    const error = new Error(
+      "A real spill ID is required for AIS."
+    );
+
+    error.code = "NO_SPILL_ID";
+
+    throw error;
+  }
+
+  if (!AIS_TRACKS_URL) {
+    const error = new Error(
+      "AIS endpoint is not configured."
+    );
+
+    error.code = "AIS_NOT_CONFIGURED";
+
+    throw error;
+  }
+
+  const target =
+    AIS_TRACKS_URL.includes("{spillId}")
+      ? AIS_TRACKS_URL.replaceAll(
+          "{spillId}",
+          encodeId(spillId)
+        )
+      : AIS_TRACKS_URL;
+
+  return (await api.get(target)).data;
+};
+
+
+/* ---------------- CANDIDATES ---------------- */
+
+export const getCandidates = async (spillId) => {
+  if (!spillId) {
+    const error = new Error(
+      "A real spill ID is required for candidates."
+    );
+
+    error.code = "NO_SPILL_ID";
+
+    throw error;
+  }
+
+  if (!CANDIDATES_URL) {
+    const error = new Error(
+      "Candidate generation endpoint is not configured."
+    );
+
+    error.code = "CANDIDATES_NOT_CONFIGURED";
+
+    throw error;
+  }
+
+  const target =
+    CANDIDATES_URL.includes("{spillId}")
+      ? CANDIDATES_URL.replaceAll(
+          "{spillId}",
+          encodeId(spillId)
+        )
+      : CANDIDATES_URL;
+
+  return (await api.get(target)).data;
+};
+
+export const rankCandidates = async (
+  spillId,
+  {
+    compatibility,
+    driftEvidence,
+    candidates = [],
+    limit = 10,
+  }
+) => {
+  if (!spillId) {
+    throw new Error(
+      "Spill ID is required."
+    );
+  }
+
+  return (
+    await api.post(
+      `/api/v1/spills/${encodeId(
+        spillId
+      )}/candidates/rank`,
+      {
+        compatibility,
+        drift_evidence: driftEvidence,
+        candidates,
+        limit,
+      }
+    )
+  ).data;
+};
+
+export const getCandidateRun = async (
+  spillId,
+  runId
+) =>
+  (
+    await api.get(
+      `/api/v1/spills/${encodeId(
+        spillId
+      )}/candidate-runs/${encodeId(runId)}`
+    )
+  ).data;
+
+export const getCandidateDetail = async (
+  spillId,
+  runId,
+  candidateId
+) =>
+  (
+    await api.get(
+      `/api/v1/spills/${encodeId(
+        spillId
+      )}/candidate-runs/${encodeId(
+        runId
+      )}/candidates/${encodeId(
+        candidateId
+      )}`
+    )
+  ).data;
+
+
+/* ---------------- REPORT ---------------- */
+
+export const createInvestigationReport =
+  async (payload) =>
+    (
+      await api.post(
+        "/api/v1/reports/investigation",
+        payload
+      )
+    ).data;
+
+export const createInvestigationReportHtml =
+  async (payload) =>
+    (
+      await api.post(
+        "/api/v1/reports/investigation/html",
+        payload,
+        {
+          responseType: "text",
+        }
+      )
+    ).data;
+
+
+/* ---------------- URL HELPER ---------------- */
+
+export const resolveApiUrl = (value) => {
+  if (!value || typeof value !== "string") {
+    return null;
+  }
+
+  if (/^https?:\/\//i.test(value)) {
+    return value;
+  }
+
+  if (value.startsWith("/")) {
+    return `${API_BASE_URL}${value}`;
+  }
+
+  return null;
+};
 
 export default api;
