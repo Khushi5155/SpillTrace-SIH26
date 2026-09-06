@@ -1,0 +1,806 @@
+{
+  "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
+  "data_mode": "TEST_FIXTURE",
+  "scenario_label": "Analyst Parameter-Driven Scenario Simulation",
+  "timestamp_source_verified": false,
+  "real_world_attribution_claim_allowed": false,
+  "scoring_version": "v1.0",
+  "summary": {
+    "input_rows": 95,
+    "filtered_rows": 95,
+    "unique_mmsis": 71,
+    "single_point_mmsis_excluded": 50,
+    "eligible_mmsis": 21,
+    "complete_feature_records": 0,
+    "excluded_by_reason": {
+      "single_point_mmsi": 50
+    }
+  },
+  "per_mmsi_scores": [
+    {
+      "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
+      "mmsi": "338174000",
+      "position_count": 2,
+      "track_start_time": "2025-01-08T00:00:37+00:00",
+      "track_end_time": "2025-01-08T00:02:37+00:00",
+      "spatial_proximity_score": 0.923107192908682,
+      "temporal_overlap_score": 0.2,
+      "heading_compatibility_score": 0.42305555555555563,
+      "route_intersection_score": 1.0,
+      "track_continuity_score": 0.7142857142857143,
+      "ais_completeness": 0.5,
+      "feature_availability": {
+        "spatial_proximity_score": "available_from_real_positions",
+        "temporal_overlap_score": "available_from_real_timestamps",
+        "heading_compatibility_score": "available_from_real_cog",
+        "route_intersection_score": "available_from_real_track_segment",
+        "track_continuity_score": "available_from_real_gaps",
+        "ais_completeness": "available_from_real_positions_and_times"
+      },
+      "feature_limitations": [
+        "AIS completeness below 1.0 (0.500) indicates sparse reporting relative to expected 30s interval."
+      ],
+      "gap_statistics": {
+        "max_gap_seconds": 120.0,
+        "mean_gap_seconds": 120.0
+      },
+      "source_file": "data/ais/ais_sample_10000.csv",
+      "cleaned_parquet_path": "data/ais/cleaned/ais_sample_10000_cleaned.parquet",
+      "drift_metadata_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/drift_metadata.json",
+      "origin_corridor_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/origin_corridor.geojson",
+      "data_mode": "TEST_FIXTURE",
+      "scenario_label": "Analyst Parameter-Driven Scenario Simulation",
+      "timestamp_source_verified": false,
+      "real_world_attribution_claim_allowed": false,
+      "scoring_version": "v1.0"
+    },
+    {
+      "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
+      "mmsi": "366014000",
+      "position_count": 2,
+      "track_start_time": "2025-01-08T00:00:03+00:00",
+      "track_end_time": "2025-01-08T00:01:33+00:00",
+      "spatial_proximity_score": 0.8676131294915677,
+      "temporal_overlap_score": 0.15,
+      "heading_compatibility_score": 0.47777777777777775,
+      "route_intersection_score": 1.0,
+      "track_continuity_score": 0.7692307692307692,
+      "ais_completeness": 0.6666666666666666,
+      "feature_availability": {
+        "spatial_proximity_score": "available_from_real_positions",
+        "temporal_overlap_score": "available_from_real_timestamps",
+        "heading_compatibility_score": "available_from_real_cog",
+        "route_intersection_score": "available_from_real_track_segment",
+        "track_continuity_score": "available_from_real_gaps",
+        "ais_completeness": "available_from_real_positions_and_times"
+      },
+      "feature_limitations": [
+        "AIS completeness below 1.0 (0.667) indicates sparse reporting relative to expected 30s interval."
+      ],
+      "gap_statistics": {
+        "max_gap_seconds": 90.0,
+        "mean_gap_seconds": 90.0
+      },
+      "source_file": "data/ais/ais_sample_10000.csv",
+      "cleaned_parquet_path": "data/ais/cleaned/ais_sample_10000_cleaned.parquet",
+      "drift_metadata_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/drift_metadata.json",
+      "origin_corridor_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/origin_corridor.geojson",
+      "data_mode": "TEST_FIXTURE",
+      "scenario_label": "Analyst Parameter-Driven Scenario Simulation",
+      "timestamp_source_verified": false,
+      "real_world_attribution_claim_allowed": false,
+      "scoring_version": "v1.0"
+    },
+    {
+      "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
+      "mmsi": "366484000",
+      "position_count": 2,
+      "track_start_time": "2025-01-08T00:00:14+00:00",
+      "track_end_time": "2025-01-08T00:02:34+00:00",
+      "spatial_proximity_score": 0.8704318270521527,
+      "temporal_overlap_score": 0.23333333333333334,
+      "heading_compatibility_score": 0.20499999999999985,
+      "route_intersection_score": 1.0,
+      "track_continuity_score": 0.6818181818181818,
+      "ais_completeness": 0.4,
+      "feature_availability": {
+        "spatial_proximity_score": "available_from_real_positions",
+        "temporal_overlap_score": "available_from_real_timestamps",
+        "heading_compatibility_score": "available_from_real_cog",
+        "route_intersection_score": "available_from_real_track_segment",
+        "track_continuity_score": "available_from_real_gaps",
+        "ais_completeness": "available_from_real_positions_and_times"
+      },
+      "feature_limitations": [
+        "AIS completeness below 1.0 (0.400) indicates sparse reporting relative to expected 30s interval."
+      ],
+      "gap_statistics": {
+        "max_gap_seconds": 140.0,
+        "mean_gap_seconds": 140.0
+      },
+      "source_file": "data/ais/ais_sample_10000.csv",
+      "cleaned_parquet_path": "data/ais/cleaned/ais_sample_10000_cleaned.parquet",
+      "drift_metadata_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/drift_metadata.json",
+      "origin_corridor_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/origin_corridor.geojson",
+      "data_mode": "TEST_FIXTURE",
+      "scenario_label": "Analyst Parameter-Driven Scenario Simulation",
+      "timestamp_source_verified": false,
+      "real_world_attribution_claim_allowed": false,
+      "scoring_version": "v1.0"
+    },
+    {
+      "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
+      "mmsi": "366942880",
+      "position_count": 2,
+      "track_start_time": "2025-01-08T00:00:02+00:00",
+      "track_end_time": "2025-01-08T00:02:34+00:00",
+      "spatial_proximity_score": 0.8813700721933276,
+      "temporal_overlap_score": 0.25333333333333335,
+      "heading_compatibility_score": 0.6494444444444445,
+      "route_intersection_score": 1.0,
+      "track_continuity_score": 0.663716814159292,
+      "ais_completeness": 0.3333333333333333,
+      "feature_availability": {
+        "spatial_proximity_score": "available_from_real_positions",
+        "temporal_overlap_score": "available_from_real_timestamps",
+        "heading_compatibility_score": "available_from_real_cog",
+        "route_intersection_score": "available_from_real_track_segment",
+        "track_continuity_score": "available_from_real_gaps",
+        "ais_completeness": "available_from_real_positions_and_times"
+      },
+      "feature_limitations": [
+        "AIS completeness below 1.0 (0.333) indicates sparse reporting relative to expected 30s interval."
+      ],
+      "gap_statistics": {
+        "max_gap_seconds": 152.0,
+        "mean_gap_seconds": 152.0
+      },
+      "source_file": "data/ais/ais_sample_10000.csv",
+      "cleaned_parquet_path": "data/ais/cleaned/ais_sample_10000_cleaned.parquet",
+      "drift_metadata_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/drift_metadata.json",
+      "origin_corridor_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/origin_corridor.geojson",
+      "data_mode": "TEST_FIXTURE",
+      "scenario_label": "Analyst Parameter-Driven Scenario Simulation",
+      "timestamp_source_verified": false,
+      "real_world_attribution_claim_allowed": false,
+      "scoring_version": "v1.0"
+    },
+    {
+      "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
+      "mmsi": "367411940",
+      "position_count": 2,
+      "track_start_time": "2025-01-08T00:00:02+00:00",
+      "track_end_time": "2025-01-08T00:01:12+00:00",
+      "spatial_proximity_score": 0.9150399265313162,
+      "temporal_overlap_score": 0.11666666666666667,
+      "heading_compatibility_score": 0.6341666666666667,
+      "route_intersection_score": 1.0,
+      "track_continuity_score": 0.8108108108108107,
+      "ais_completeness": 0.6666666666666666,
+      "feature_availability": {
+        "spatial_proximity_score": "available_from_real_positions",
+        "temporal_overlap_score": "available_from_real_timestamps",
+        "heading_compatibility_score": "available_from_real_cog",
+        "route_intersection_score": "available_from_real_track_segment",
+        "track_continuity_score": "available_from_real_gaps",
+        "ais_completeness": "available_from_real_positions_and_times"
+      },
+      "feature_limitations": [
+        "AIS completeness below 1.0 (0.667) indicates sparse reporting relative to expected 30s interval."
+      ],
+      "gap_statistics": {
+        "max_gap_seconds": 70.0,
+        "mean_gap_seconds": 70.0
+      },
+      "source_file": "data/ais/ais_sample_10000.csv",
+      "cleaned_parquet_path": "data/ais/cleaned/ais_sample_10000_cleaned.parquet",
+      "drift_metadata_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/drift_metadata.json",
+      "origin_corridor_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/origin_corridor.geojson",
+      "data_mode": "TEST_FIXTURE",
+      "scenario_label": "Analyst Parameter-Driven Scenario Simulation",
+      "timestamp_source_verified": false,
+      "real_world_attribution_claim_allowed": false,
+      "scoring_version": "v1.0"
+    },
+    {
+      "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
+      "mmsi": "367493760",
+      "position_count": 3,
+      "track_start_time": "2025-01-08T00:00:00+00:00",
+      "track_end_time": "2025-01-08T00:01:32+00:00",
+      "spatial_proximity_score": 0.8707246607424386,
+      "temporal_overlap_score": 0.15333333333333332,
+      "heading_compatibility_score": 0.4970370370370371,
+      "route_intersection_score": 1.0,
+      "track_continuity_score": 0.7653061224489796,
+      "ais_completeness": 0.75,
+      "feature_availability": {
+        "spatial_proximity_score": "available_from_real_positions",
+        "temporal_overlap_score": "available_from_real_timestamps",
+        "heading_compatibility_score": "available_from_real_cog",
+        "route_intersection_score": "available_from_real_track_segment",
+        "track_continuity_score": "available_from_real_gaps",
+        "ais_completeness": "available_from_real_positions_and_times"
+      },
+      "feature_limitations": [
+        "AIS completeness below 1.0 (0.750) indicates sparse reporting relative to expected 30s interval."
+      ],
+      "gap_statistics": {
+        "max_gap_seconds": 92.0,
+        "mean_gap_seconds": 46.0
+      },
+      "source_file": "data/ais/ais_sample_10000.csv",
+      "cleaned_parquet_path": "data/ais/cleaned/ais_sample_10000_cleaned.parquet",
+      "drift_metadata_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/drift_metadata.json",
+      "origin_corridor_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/origin_corridor.geojson",
+      "data_mode": "TEST_FIXTURE",
+      "scenario_label": "Analyst Parameter-Driven Scenario Simulation",
+      "timestamp_source_verified": false,
+      "real_world_attribution_claim_allowed": false,
+      "scoring_version": "v1.0"
+    },
+    {
+      "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
+      "mmsi": "367561730",
+      "position_count": 3,
+      "track_start_time": "2025-01-08T00:00:01+00:00",
+      "track_end_time": "2025-01-08T00:02:31+00:00",
+      "spatial_proximity_score": 0.9487351572560462,
+      "temporal_overlap_score": 0.25,
+      "heading_compatibility_score": 0.4561111111111112,
+      "route_intersection_score": 1.0,
+      "track_continuity_score": 0.7894736842105263,
+      "ais_completeness": 0.6,
+      "feature_availability": {
+        "spatial_proximity_score": "available_from_real_positions",
+        "temporal_overlap_score": "available_from_real_timestamps",
+        "heading_compatibility_score": "available_from_real_cog",
+        "route_intersection_score": "available_from_real_track_segment",
+        "track_continuity_score": "available_from_real_gaps",
+        "ais_completeness": "available_from_real_positions_and_times"
+      },
+      "feature_limitations": [
+        "AIS completeness below 1.0 (0.600) indicates sparse reporting relative to expected 30s interval."
+      ],
+      "gap_statistics": {
+        "max_gap_seconds": 80.0,
+        "mean_gap_seconds": 75.0
+      },
+      "source_file": "data/ais/ais_sample_10000.csv",
+      "cleaned_parquet_path": "data/ais/cleaned/ais_sample_10000_cleaned.parquet",
+      "drift_metadata_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/drift_metadata.json",
+      "origin_corridor_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/origin_corridor.geojson",
+      "data_mode": "TEST_FIXTURE",
+      "scenario_label": "Analyst Parameter-Driven Scenario Simulation",
+      "timestamp_source_verified": false,
+      "real_world_attribution_claim_allowed": false,
+      "scoring_version": "v1.0"
+    },
+    {
+      "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
+      "mmsi": "367602890",
+      "position_count": 2,
+      "track_start_time": "2025-01-08T00:01:02+00:00",
+      "track_end_time": "2025-01-08T00:02:34+00:00",
+      "spatial_proximity_score": 0.9126809290981109,
+      "temporal_overlap_score": 0.15333333333333332,
+      "heading_compatibility_score": 0.93,
+      "route_intersection_score": 1.0,
+      "track_continuity_score": 0.7653061224489796,
+      "ais_completeness": 0.5,
+      "feature_availability": {
+        "spatial_proximity_score": "available_from_real_positions",
+        "temporal_overlap_score": "available_from_real_timestamps",
+        "heading_compatibility_score": "available_from_real_cog",
+        "route_intersection_score": "available_from_real_track_segment",
+        "track_continuity_score": "available_from_real_gaps",
+        "ais_completeness": "available_from_real_positions_and_times"
+      },
+      "feature_limitations": [
+        "AIS completeness below 1.0 (0.500) indicates sparse reporting relative to expected 30s interval."
+      ],
+      "gap_statistics": {
+        "max_gap_seconds": 92.0,
+        "mean_gap_seconds": 92.0
+      },
+      "source_file": "data/ais/ais_sample_10000.csv",
+      "cleaned_parquet_path": "data/ais/cleaned/ais_sample_10000_cleaned.parquet",
+      "drift_metadata_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/drift_metadata.json",
+      "origin_corridor_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/origin_corridor.geojson",
+      "data_mode": "TEST_FIXTURE",
+      "scenario_label": "Analyst Parameter-Driven Scenario Simulation",
+      "timestamp_source_verified": false,
+      "real_world_attribution_claim_allowed": false,
+      "scoring_version": "v1.0"
+    },
+    {
+      "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
+      "mmsi": "367612350",
+      "position_count": 2,
+      "track_start_time": "2025-01-08T00:00:09+00:00",
+      "track_end_time": "2025-01-08T00:01:30+00:00",
+      "spatial_proximity_score": 0.8850174961082776,
+      "temporal_overlap_score": 0.135,
+      "heading_compatibility_score": 0.06027777777777776,
+      "route_intersection_score": 1.0,
+      "track_continuity_score": 0.7874015748031495,
+      "ais_completeness": 0.6666666666666666,
+      "feature_availability": {
+        "spatial_proximity_score": "available_from_real_positions",
+        "temporal_overlap_score": "available_from_real_timestamps",
+        "heading_compatibility_score": "available_from_real_cog",
+        "route_intersection_score": "available_from_real_track_segment",
+        "track_continuity_score": "available_from_real_gaps",
+        "ais_completeness": "available_from_real_positions_and_times"
+      },
+      "feature_limitations": [
+        "AIS completeness below 1.0 (0.667) indicates sparse reporting relative to expected 30s interval."
+      ],
+      "gap_statistics": {
+        "max_gap_seconds": 81.0,
+        "mean_gap_seconds": 81.0
+      },
+      "source_file": "data/ais/ais_sample_10000.csv",
+      "cleaned_parquet_path": "data/ais/cleaned/ais_sample_10000_cleaned.parquet",
+      "drift_metadata_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/drift_metadata.json",
+      "origin_corridor_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/origin_corridor.geojson",
+      "data_mode": "TEST_FIXTURE",
+      "scenario_label": "Analyst Parameter-Driven Scenario Simulation",
+      "timestamp_source_verified": false,
+      "real_world_attribution_claim_allowed": false,
+      "scoring_version": "v1.0"
+    },
+    {
+      "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
+      "mmsi": "367634690",
+      "position_count": 2,
+      "track_start_time": "2025-01-08T00:00:01+00:00",
+      "track_end_time": "2025-01-08T00:01:32+00:00",
+      "spatial_proximity_score": 0.9162618042641673,
+      "temporal_overlap_score": 0.15166666666666667,
+      "heading_compatibility_score": 0.45083333333333336,
+      "route_intersection_score": 1.0,
+      "track_continuity_score": 0.7672634271099745,
+      "ais_completeness": 0.5,
+      "feature_availability": {
+        "spatial_proximity_score": "available_from_real_positions",
+        "temporal_overlap_score": "available_from_real_timestamps",
+        "heading_compatibility_score": "available_from_real_cog",
+        "route_intersection_score": "available_from_real_track_segment",
+        "track_continuity_score": "available_from_real_gaps",
+        "ais_completeness": "available_from_real_positions_and_times"
+      },
+      "feature_limitations": [
+        "AIS completeness below 1.0 (0.500) indicates sparse reporting relative to expected 30s interval."
+      ],
+      "gap_statistics": {
+        "max_gap_seconds": 91.0,
+        "mean_gap_seconds": 91.0
+      },
+      "source_file": "data/ais/ais_sample_10000.csv",
+      "cleaned_parquet_path": "data/ais/cleaned/ais_sample_10000_cleaned.parquet",
+      "drift_metadata_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/drift_metadata.json",
+      "origin_corridor_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/origin_corridor.geojson",
+      "data_mode": "TEST_FIXTURE",
+      "scenario_label": "Analyst Parameter-Driven Scenario Simulation",
+      "timestamp_source_verified": false,
+      "real_world_attribution_claim_allowed": false,
+      "scoring_version": "v1.0"
+    },
+    {
+      "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
+      "mmsi": "367642410",
+      "position_count": 2,
+      "track_start_time": "2025-01-08T00:00:49+00:00",
+      "track_end_time": "2025-01-08T00:01:58+00:00",
+      "spatial_proximity_score": 0.9024133612901959,
+      "temporal_overlap_score": 0.115,
+      "heading_compatibility_score": 0.1233333333333333,
+      "route_intersection_score": 1.0,
+      "track_continuity_score": 0.8130081300813008,
+      "ais_completeness": 0.6666666666666666,
+      "feature_availability": {
+        "spatial_proximity_score": "available_from_real_positions",
+        "temporal_overlap_score": "available_from_real_timestamps",
+        "heading_compatibility_score": "available_from_real_cog",
+        "route_intersection_score": "available_from_real_track_segment",
+        "track_continuity_score": "available_from_real_gaps",
+        "ais_completeness": "available_from_real_positions_and_times"
+      },
+      "feature_limitations": [
+        "AIS completeness below 1.0 (0.667) indicates sparse reporting relative to expected 30s interval."
+      ],
+      "gap_statistics": {
+        "max_gap_seconds": 69.0,
+        "mean_gap_seconds": 69.0
+      },
+      "source_file": "data/ais/ais_sample_10000.csv",
+      "cleaned_parquet_path": "data/ais/cleaned/ais_sample_10000_cleaned.parquet",
+      "drift_metadata_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/drift_metadata.json",
+      "origin_corridor_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/origin_corridor.geojson",
+      "data_mode": "TEST_FIXTURE",
+      "scenario_label": "Analyst Parameter-Driven Scenario Simulation",
+      "timestamp_source_verified": false,
+      "real_world_attribution_claim_allowed": false,
+      "scoring_version": "v1.0"
+    },
+    {
+      "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
+      "mmsi": "367643740",
+      "position_count": 2,
+      "track_start_time": "2025-01-08T00:00:03+00:00",
+      "track_end_time": "2025-01-08T00:01:12+00:00",
+      "spatial_proximity_score": 0.9545838190675218,
+      "temporal_overlap_score": 0.115,
+      "heading_compatibility_score": 0.3688888888888887,
+      "route_intersection_score": 1.0,
+      "track_continuity_score": 0.8130081300813008,
+      "ais_completeness": 0.6666666666666666,
+      "feature_availability": {
+        "spatial_proximity_score": "available_from_real_positions",
+        "temporal_overlap_score": "available_from_real_timestamps",
+        "heading_compatibility_score": "available_from_real_cog",
+        "route_intersection_score": "available_from_real_track_segment",
+        "track_continuity_score": "available_from_real_gaps",
+        "ais_completeness": "available_from_real_positions_and_times"
+      },
+      "feature_limitations": [
+        "AIS completeness below 1.0 (0.667) indicates sparse reporting relative to expected 30s interval."
+      ],
+      "gap_statistics": {
+        "max_gap_seconds": 69.0,
+        "mean_gap_seconds": 69.0
+      },
+      "source_file": "data/ais/ais_sample_10000.csv",
+      "cleaned_parquet_path": "data/ais/cleaned/ais_sample_10000_cleaned.parquet",
+      "drift_metadata_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/drift_metadata.json",
+      "origin_corridor_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/origin_corridor.geojson",
+      "data_mode": "TEST_FIXTURE",
+      "scenario_label": "Analyst Parameter-Driven Scenario Simulation",
+      "timestamp_source_verified": false,
+      "real_world_attribution_claim_allowed": false,
+      "scoring_version": "v1.0"
+    },
+    {
+      "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
+      "mmsi": "367643760",
+      "position_count": 3,
+      "track_start_time": "2025-01-08T00:00:05+00:00",
+      "track_end_time": "2025-01-08T00:02:34+00:00",
+      "spatial_proximity_score": 0.9460129155071816,
+      "temporal_overlap_score": 0.24833333333333332,
+      "heading_compatibility_score": 0.9883333333333334,
+      "route_intersection_score": 1.0,
+      "track_continuity_score": 0.79155672823219,
+      "ais_completeness": 0.6,
+      "feature_availability": {
+        "spatial_proximity_score": "available_from_real_positions",
+        "temporal_overlap_score": "available_from_real_timestamps",
+        "heading_compatibility_score": "available_from_real_cog",
+        "route_intersection_score": "available_from_real_track_segment",
+        "track_continuity_score": "available_from_real_gaps",
+        "ais_completeness": "available_from_real_positions_and_times"
+      },
+      "feature_limitations": [
+        "AIS completeness below 1.0 (0.600) indicates sparse reporting relative to expected 30s interval."
+      ],
+      "gap_statistics": {
+        "max_gap_seconds": 79.0,
+        "mean_gap_seconds": 74.5
+      },
+      "source_file": "data/ais/ais_sample_10000.csv",
+      "cleaned_parquet_path": "data/ais/cleaned/ais_sample_10000_cleaned.parquet",
+      "drift_metadata_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/drift_metadata.json",
+      "origin_corridor_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/origin_corridor.geojson",
+      "data_mode": "TEST_FIXTURE",
+      "scenario_label": "Analyst Parameter-Driven Scenario Simulation",
+      "timestamp_source_verified": false,
+      "real_world_attribution_claim_allowed": false,
+      "scoring_version": "v1.0"
+    },
+    {
+      "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
+      "mmsi": "367657110",
+      "position_count": 2,
+      "track_start_time": "2025-01-08T00:00:10+00:00",
+      "track_end_time": "2025-01-08T00:01:40+00:00",
+      "spatial_proximity_score": 0.8867025983056898,
+      "temporal_overlap_score": 0.15,
+      "heading_compatibility_score": 0.13222222222222224,
+      "route_intersection_score": 1.0,
+      "track_continuity_score": 0.7692307692307692,
+      "ais_completeness": 0.6666666666666666,
+      "feature_availability": {
+        "spatial_proximity_score": "available_from_real_positions",
+        "temporal_overlap_score": "available_from_real_timestamps",
+        "heading_compatibility_score": "available_from_real_cog",
+        "route_intersection_score": "available_from_real_track_segment",
+        "track_continuity_score": "available_from_real_gaps",
+        "ais_completeness": "available_from_real_positions_and_times"
+      },
+      "feature_limitations": [
+        "AIS completeness below 1.0 (0.667) indicates sparse reporting relative to expected 30s interval."
+      ],
+      "gap_statistics": {
+        "max_gap_seconds": 90.0,
+        "mean_gap_seconds": 90.0
+      },
+      "source_file": "data/ais/ais_sample_10000.csv",
+      "cleaned_parquet_path": "data/ais/cleaned/ais_sample_10000_cleaned.parquet",
+      "drift_metadata_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/drift_metadata.json",
+      "origin_corridor_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/origin_corridor.geojson",
+      "data_mode": "TEST_FIXTURE",
+      "scenario_label": "Analyst Parameter-Driven Scenario Simulation",
+      "timestamp_source_verified": false,
+      "real_world_attribution_claim_allowed": false,
+      "scoring_version": "v1.0"
+    },
+    {
+      "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
+      "mmsi": "367689970",
+      "position_count": 2,
+      "track_start_time": "2025-01-08T00:00:00+00:00",
+      "track_end_time": "2025-01-08T00:01:20+00:00",
+      "spatial_proximity_score": 0.8906842551658449,
+      "temporal_overlap_score": 0.13333333333333333,
+      "heading_compatibility_score": 0.07388888888888878,
+      "route_intersection_score": 1.0,
+      "track_continuity_score": 0.7894736842105263,
+      "ais_completeness": 0.6666666666666666,
+      "feature_availability": {
+        "spatial_proximity_score": "available_from_real_positions",
+        "temporal_overlap_score": "available_from_real_timestamps",
+        "heading_compatibility_score": "available_from_real_cog",
+        "route_intersection_score": "available_from_real_track_segment",
+        "track_continuity_score": "available_from_real_gaps",
+        "ais_completeness": "available_from_real_positions_and_times"
+      },
+      "feature_limitations": [
+        "AIS completeness below 1.0 (0.667) indicates sparse reporting relative to expected 30s interval."
+      ],
+      "gap_statistics": {
+        "max_gap_seconds": 80.0,
+        "mean_gap_seconds": 80.0
+      },
+      "source_file": "data/ais/ais_sample_10000.csv",
+      "cleaned_parquet_path": "data/ais/cleaned/ais_sample_10000_cleaned.parquet",
+      "drift_metadata_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/drift_metadata.json",
+      "origin_corridor_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/origin_corridor.geojson",
+      "data_mode": "TEST_FIXTURE",
+      "scenario_label": "Analyst Parameter-Driven Scenario Simulation",
+      "timestamp_source_verified": false,
+      "real_world_attribution_claim_allowed": false,
+      "scoring_version": "v1.0"
+    },
+    {
+      "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
+      "mmsi": "367739650",
+      "position_count": 2,
+      "track_start_time": "2025-01-08T00:00:42+00:00",
+      "track_end_time": "2025-01-08T00:02:21+00:00",
+      "spatial_proximity_score": 0.9493896664673863,
+      "temporal_overlap_score": 0.165,
+      "heading_compatibility_score": 0.5016666666666667,
+      "route_intersection_score": 1.0,
+      "track_continuity_score": 0.7518796992481203,
+      "ais_completeness": 0.5,
+      "feature_availability": {
+        "spatial_proximity_score": "available_from_real_positions",
+        "temporal_overlap_score": "available_from_real_timestamps",
+        "heading_compatibility_score": "available_from_real_cog",
+        "route_intersection_score": "available_from_real_track_segment",
+        "track_continuity_score": "available_from_real_gaps",
+        "ais_completeness": "available_from_real_positions_and_times"
+      },
+      "feature_limitations": [
+        "AIS completeness below 1.0 (0.500) indicates sparse reporting relative to expected 30s interval."
+      ],
+      "gap_statistics": {
+        "max_gap_seconds": 99.0,
+        "mean_gap_seconds": 99.0
+      },
+      "source_file": "data/ais/ais_sample_10000.csv",
+      "cleaned_parquet_path": "data/ais/cleaned/ais_sample_10000_cleaned.parquet",
+      "drift_metadata_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/drift_metadata.json",
+      "origin_corridor_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/origin_corridor.geojson",
+      "data_mode": "TEST_FIXTURE",
+      "scenario_label": "Analyst Parameter-Driven Scenario Simulation",
+      "timestamp_source_verified": false,
+      "real_world_attribution_claim_allowed": false,
+      "scoring_version": "v1.0"
+    },
+    {
+      "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
+      "mmsi": "367780870",
+      "position_count": 2,
+      "track_start_time": "2025-01-08T00:00:34+00:00",
+      "track_end_time": "2025-01-08T00:01:44+00:00",
+      "spatial_proximity_score": 0.9573223984606278,
+      "temporal_overlap_score": 0.11666666666666667,
+      "heading_compatibility_score": 0.46444444444444444,
+      "route_intersection_score": 1.0,
+      "track_continuity_score": 0.8108108108108107,
+      "ais_completeness": 0.6666666666666666,
+      "feature_availability": {
+        "spatial_proximity_score": "available_from_real_positions",
+        "temporal_overlap_score": "available_from_real_timestamps",
+        "heading_compatibility_score": "available_from_real_cog",
+        "route_intersection_score": "available_from_real_track_segment",
+        "track_continuity_score": "available_from_real_gaps",
+        "ais_completeness": "available_from_real_positions_and_times"
+      },
+      "feature_limitations": [
+        "AIS completeness below 1.0 (0.667) indicates sparse reporting relative to expected 30s interval."
+      ],
+      "gap_statistics": {
+        "max_gap_seconds": 70.0,
+        "mean_gap_seconds": 70.0
+      },
+      "source_file": "data/ais/ais_sample_10000.csv",
+      "cleaned_parquet_path": "data/ais/cleaned/ais_sample_10000_cleaned.parquet",
+      "drift_metadata_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/drift_metadata.json",
+      "origin_corridor_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/origin_corridor.geojson",
+      "data_mode": "TEST_FIXTURE",
+      "scenario_label": "Analyst Parameter-Driven Scenario Simulation",
+      "timestamp_source_verified": false,
+      "real_world_attribution_claim_allowed": false,
+      "scoring_version": "v1.0"
+    },
+    {
+      "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
+      "mmsi": "368042000",
+      "position_count": 2,
+      "track_start_time": "2025-01-08T00:00:03+00:00",
+      "track_end_time": "2025-01-08T00:01:13+00:00",
+      "spatial_proximity_score": 0.865799715069472,
+      "temporal_overlap_score": 0.11666666666666667,
+      "heading_compatibility_score": 0.1413888888888888,
+      "route_intersection_score": 1.0,
+      "track_continuity_score": 0.8108108108108107,
+      "ais_completeness": 0.6666666666666666,
+      "feature_availability": {
+        "spatial_proximity_score": "available_from_real_positions",
+        "temporal_overlap_score": "available_from_real_timestamps",
+        "heading_compatibility_score": "available_from_real_cog",
+        "route_intersection_score": "available_from_real_track_segment",
+        "track_continuity_score": "available_from_real_gaps",
+        "ais_completeness": "available_from_real_positions_and_times"
+      },
+      "feature_limitations": [
+        "AIS completeness below 1.0 (0.667) indicates sparse reporting relative to expected 30s interval."
+      ],
+      "gap_statistics": {
+        "max_gap_seconds": 70.0,
+        "mean_gap_seconds": 70.0
+      },
+      "source_file": "data/ais/ais_sample_10000.csv",
+      "cleaned_parquet_path": "data/ais/cleaned/ais_sample_10000_cleaned.parquet",
+      "drift_metadata_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/drift_metadata.json",
+      "origin_corridor_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/origin_corridor.geojson",
+      "data_mode": "TEST_FIXTURE",
+      "scenario_label": "Analyst Parameter-Driven Scenario Simulation",
+      "timestamp_source_verified": false,
+      "real_world_attribution_claim_allowed": false,
+      "scoring_version": "v1.0"
+    },
+    {
+      "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
+      "mmsi": "368071000",
+      "position_count": 2,
+      "track_start_time": "2025-01-08T00:00:24+00:00",
+      "track_end_time": "2025-01-08T00:02:34+00:00",
+      "spatial_proximity_score": 0.9293846867558125,
+      "temporal_overlap_score": 0.21666666666666667,
+      "heading_compatibility_score": 0.073888888888889,
+      "route_intersection_score": 1.0,
+      "track_continuity_score": 0.6976744186046512,
+      "ais_completeness": 0.4,
+      "feature_availability": {
+        "spatial_proximity_score": "available_from_real_positions",
+        "temporal_overlap_score": "available_from_real_timestamps",
+        "heading_compatibility_score": "available_from_real_cog",
+        "route_intersection_score": "available_from_real_track_segment",
+        "track_continuity_score": "available_from_real_gaps",
+        "ais_completeness": "available_from_real_positions_and_times"
+      },
+      "feature_limitations": [
+        "AIS completeness below 1.0 (0.400) indicates sparse reporting relative to expected 30s interval."
+      ],
+      "gap_statistics": {
+        "max_gap_seconds": 130.0,
+        "mean_gap_seconds": 130.0
+      },
+      "source_file": "data/ais/ais_sample_10000.csv",
+      "cleaned_parquet_path": "data/ais/cleaned/ais_sample_10000_cleaned.parquet",
+      "drift_metadata_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/drift_metadata.json",
+      "origin_corridor_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/origin_corridor.geojson",
+      "data_mode": "TEST_FIXTURE",
+      "scenario_label": "Analyst Parameter-Driven Scenario Simulation",
+      "timestamp_source_verified": false,
+      "real_world_attribution_claim_allowed": false,
+      "scoring_version": "v1.0"
+    },
+    {
+      "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
+      "mmsi": "368315650",
+      "position_count": 2,
+      "track_start_time": "2025-01-08T00:00:05+00:00",
+      "track_end_time": "2025-01-08T00:01:15+00:00",
+      "spatial_proximity_score": 0.9333855991629523,
+      "temporal_overlap_score": 0.11666666666666667,
+      "heading_compatibility_score": 0.5680555555555556,
+      "route_intersection_score": 1.0,
+      "track_continuity_score": 0.8108108108108107,
+      "ais_completeness": 0.6666666666666666,
+      "feature_availability": {
+        "spatial_proximity_score": "available_from_real_positions",
+        "temporal_overlap_score": "available_from_real_timestamps",
+        "heading_compatibility_score": "available_from_real_cog",
+        "route_intersection_score": "available_from_real_track_segment",
+        "track_continuity_score": "available_from_real_gaps",
+        "ais_completeness": "available_from_real_positions_and_times"
+      },
+      "feature_limitations": [
+        "AIS completeness below 1.0 (0.667) indicates sparse reporting relative to expected 30s interval."
+      ],
+      "gap_statistics": {
+        "max_gap_seconds": 70.0,
+        "mean_gap_seconds": 70.0
+      },
+      "source_file": "data/ais/ais_sample_10000.csv",
+      "cleaned_parquet_path": "data/ais/cleaned/ais_sample_10000_cleaned.parquet",
+      "drift_metadata_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/drift_metadata.json",
+      "origin_corridor_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/origin_corridor.geojson",
+      "data_mode": "TEST_FIXTURE",
+      "scenario_label": "Analyst Parameter-Driven Scenario Simulation",
+      "timestamp_source_verified": false,
+      "real_world_attribution_claim_allowed": false,
+      "scoring_version": "v1.0"
+    },
+    {
+      "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
+      "mmsi": "369204000",
+      "position_count": 2,
+      "track_start_time": "2025-01-08T00:00:02+00:00",
+      "track_end_time": "2025-01-08T00:01:11+00:00",
+      "spatial_proximity_score": 0.9180266982198507,
+      "temporal_overlap_score": 0.115,
+      "heading_compatibility_score": 0.38388888888888906,
+      "route_intersection_score": 1.0,
+      "track_continuity_score": 0.8130081300813008,
+      "ais_completeness": 0.6666666666666666,
+      "feature_availability": {
+        "spatial_proximity_score": "available_from_real_positions",
+        "temporal_overlap_score": "available_from_real_timestamps",
+        "heading_compatibility_score": "available_from_real_cog",
+        "route_intersection_score": "available_from_real_track_segment",
+        "track_continuity_score": "available_from_real_gaps",
+        "ais_completeness": "available_from_real_positions_and_times"
+      },
+      "feature_limitations": [
+        "AIS completeness below 1.0 (0.667) indicates sparse reporting relative to expected 30s interval."
+      ],
+      "gap_statistics": {
+        "max_gap_seconds": 69.0,
+        "mean_gap_seconds": 69.0
+      },
+      "source_file": "data/ais/ais_sample_10000.csv",
+      "cleaned_parquet_path": "data/ais/cleaned/ais_sample_10000_cleaned.parquet",
+      "drift_metadata_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/drift_metadata.json",
+      "origin_corridor_path": "ml/test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/origin_corridor.geojson",
+      "data_mode": "TEST_FIXTURE",
+      "scenario_label": "Analyst Parameter-Driven Scenario Simulation",
+      "timestamp_source_verified": false,
+      "real_world_attribution_claim_allowed": false,
+      "scoring_version": "v1.0"
+    }
+  ],
+  "notes": [
+    "Read-only feature validation using real AIS only.",
+    "No synthetic positions, scores, or candidates created.",
+    "Single-point MMSIs excluded per Phase 3 readiness rule.",
+    "Heading compatibility computed only from non-null COG values.",
+    "Route intersection is computed from real track geometry against the corridor polygon.",
+    "AIS completeness uses an expected 30s reporting interval (Phase 3 rule)."
+  ]
+}

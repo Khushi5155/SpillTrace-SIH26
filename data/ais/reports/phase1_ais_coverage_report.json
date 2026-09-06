@@ -1,0 +1,59 @@
+{
+  "test_fixture_id": "SPILL_TEST_FIXTURE_AIS_001",
+  "data_source": "C:\\Users\\DELL\\Desktop\\SpillTrace-SIH26\\data\\ais\\cleaned\\ais_sample_10000_cleaned.parquet",
+  "global_bounds": {
+    "rows": 9977,
+    "unique_mmsi": 6890,
+    "longitude_range": [
+      -159.35849,
+      -63.85972
+    ],
+    "latitude_range": [
+      14.54614,
+      49.65558
+    ],
+    "time_range": [
+      "2025-01-08T00:00:00+00:00",
+      "2025-01-08T18:49:10+00:00"
+    ]
+  },
+  "selected_roi_and_time": {
+    "roi_lon_range": [
+      -92.0,
+      -90.0
+    ],
+    "roi_lat_range": [
+      28.0,
+      30.0
+    ],
+    "time_window_start": "2025-01-08T00:00:00+00:00",
+    "time_window_end": "2025-01-08T00:10:00+00:00",
+    "rows_in_roi_time": 806,
+    "unique_mmsi_in_roi_time": 483,
+    "actual_lon_range": [
+      -91.98299,
+      -90.00115
+    ],
+    "actual_lat_range": [
+      28.01631,
+      29.99967
+    ],
+    "actual_time_range": [
+      "2025-01-08T00:00:00+00:00",
+      "2025-01-08T00:03:07+00:00"
+    ]
+  },
+  "suggested_corridor_criteria_for_mayank": {
+    "center_lon": -90.4801241687345,
+    "center_lat": 29.69972374689826,
+    "approx_radius_deg_lon": 0.9909200000000027,
+    "approx_radius_deg_lat": 0.9916799999999988,
+    "note": "These are data-driven hints only. Mayank will define the actual slick centroid, drift direction, and corridor width for the test-fixture scenario."
+  },
+  "notes": [
+    "This report uses only real AIS records from the cleaned Parquet (Day 2 ETL).",
+    "No synthetic AIS positions, MMSIs, or candidates are introduced.",
+    "The selected ROI+time window is intended for a TEST_FIXTURE scenario aligned with real AIS coverage.",
+    "Original SPILL_TEST3_001 remains untouched and must stay blocked with HTTP 409."
+  ]
+}

@@ -65,8 +65,6 @@ test_mask.png
 ml/junk
 
 # Local/generated AIS ETL artifacts
-data/ais/cleaned/
-data/ais/reports/
 .pytest_cache/
 __pycache__/
 *.pyc
