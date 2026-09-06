@@ -48,7 +48,7 @@ def health():
         "service": "spilltrace-backend",
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
     }
-@app.get("/ready", tags=["system"])
+
 @app.get("/ready", tags=["system"])
 def ready():
     return {
@@ -59,12 +59,11 @@ def ready():
         },
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
     }
-
+settings.api_prefix = "/api/v1"
 app.include_router(system.router, prefix=settings.api_prefix)
 app.include_router(scenes.router, prefix=settings.api_prefix)
 app.include_router(detections.router, prefix=settings.api_prefix)
-app.include_router(spills.router, prefix=settings.api_prefix)
+app.include_router(spills.router, prefix="/api")
 app.include_router(drift_router)
-app.include_router(detections.router, prefix='/api/v1')
 app.include_router(candidates_router)
 app.include_router(reports_router)

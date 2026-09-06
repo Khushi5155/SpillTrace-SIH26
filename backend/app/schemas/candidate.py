@@ -118,6 +118,9 @@ class CandidateRunResponse(BaseModel):
     compatibility: CompatibilityStatus
     candidates: list[CandidateResult]
     data_mode: str
+    ranking_allowed: bool
+    prototype_label_required: bool = False
+    real_world_attribution_claim_allowed: bool = False
     disclaimer: str
     created_at_utc: datetime
 

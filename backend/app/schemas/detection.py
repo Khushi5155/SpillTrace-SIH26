@@ -59,3 +59,7 @@ class DetectionResponse(BaseModel):
     error: DetectionError | None = None
     created_at: datetime
     updated_at: datetime
+
+class DetectionRequest(BaseModel):
+    scene_id: str
+    file_path: str
