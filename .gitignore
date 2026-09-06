@@ -83,8 +83,8 @@ logs/
 #generated outputs
 ml/audit_outputs/
 ml/day3_outputs/
-ml/day4_outputs/
-ml/day5_outputs/
+# ml/day4_outputs/
+# ml/day5_outputs/
 
 # Local SAR data and test payloads
 backend/data/

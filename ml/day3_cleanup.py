@@ -20,15 +20,15 @@ from scipy.ndimage import binary_fill_holes
 # ==========================================
 # 1. Configuration & Constants
 # ==========================================
-SAR_PATH = "test3.tiff"
-PROB_PATH = "output_results/test3_pytorch_prob.tif"
+SAR_PATH = "test1.tiff"
+PROB_PATH = "day1_output_results/test1_scene_pytorch_prob.tif"
 ARGMAX_OIL_PATH = "audit_outputs/oil_argmax_mask.png"
 LOOK_ALIKE_PATH = "audit_outputs/look_alike_mask.png"
 DAY3_DIR = "day3_outputs"
-OUTPUT_GEOJSON = "output_results/test3_cleaned_slicks.geojson"
+OUTPUT_GEOJSON = "day3_outputs/test1_cleaned_slicks.geojson"
 
 os.makedirs(DAY3_DIR, exist_ok=True)
-os.makedirs("output_results", exist_ok=True)
+os.makedirs("day3_outputs", exist_ok=True)
 
 MIN_BLOB_AREA = 100
 SELECTED_THRESHOLD = 0.30
@@ -84,7 +84,7 @@ def run_day3_pipeline():
         transform = src.transform
         crs = src.crs
         img_shape = (src.height, src.width)
-        acquisition_time = src.tags().get("ACQUISITION_TIME", "2026-09-02T00:00:00Z")
+        acquisition_time = src.tags().get("ACQUISITION_TIME", "2025-01-08T18:49:10Z")
         sar_base = cv2.normalize(sar_img, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
         sar_bgr = cv2.cvtColor(sar_base, cv2.COLOR_GRAY2BGR)
 
