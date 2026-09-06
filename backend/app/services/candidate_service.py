@@ -270,6 +270,52 @@ def get_candidate_run(spill_id: str, run_id: str) -> CandidateRunResponse:
         )
     return response
 
+def get_spill_candidates(spill_id: str) -> CandidateListResponse:
+    matching_runs = [
+        response
+        for (stored_spill_id, _), response in _RUNS.items()
+        if stored_spill_id == spill_id
+    ]
+
+    if not matching_runs:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "CANDIDATE_RUN_NOT_FOUND",
+                "message": "Candidate run was not found for this spill.",
+                "details": {"spill_id": spill_id},
+                "request_id": _request_id(),
+                "timestamp_utc": _utc_now().isoformat(),
+            },
+        )
+
+    response = max(matching_runs, key=lambda item: item.created_at_utc)
+
+    if not response.compatibility.compatible:
+        raise _blocked_error(
+            response.compatibility,
+            mode=response.data_mode,
+        )
+
+    if response.data_mode not in {"REAL", "TEST_FIXTURE", "data_backed"}:
+        raise _blocked_error(
+            response.compatibility,
+            mode=response.data_mode,
+            extra_reasons=[f"Unsupported stored run mode: {response.data_mode}"],
+        )
+
+    candidates = [
+        _DETAILS[(response.run_id, candidate.candidate_id)]
+        for candidate in response.candidates
+        if (response.run_id, candidate.candidate_id) in _DETAILS
+    ]
+
+    return CandidateListResponse(
+        spill_id=spill_id,
+        run_id=response.run_id,
+        candidates=candidates,
+    )
+
 def get_candidate_list(
     spill_id: str,
     run_id: str,
