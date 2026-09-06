@@ -194,3 +194,4 @@ def test_missing_candidate_detail_returns_404():
 
     assert detail_response.status_code == 404
     assert detail_response.json()["detail"]["code"] == "CANDIDATE_NOT_FOUND"
+    
