@@ -83,7 +83,7 @@ def run_operational_hindcast():
     # Export Corridor GeoJSON
     lon_lat_trajectory = [(lon, lat) for lat, lon in trajectory]
     corridor_line = LineString(lon_lat_trajectory)
-    corridor_poly = corridor_line.buffer(0.035)
+    corridor_poly = corridor_line.buffer(0.1)
 
     corridor_geojson = {
         "type": "FeatureCollection",
