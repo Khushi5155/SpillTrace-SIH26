@@ -4,28 +4,40 @@ from uuid import uuid4
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import JSONResponse
 
+from app.api.routes.store import SPILL_STORE
 from app.schemas.detection import (
     ArtifactRefs,
     DetectionError,
     DetectionMetadata,
-    DetectionRequest,
     DetectionResponse,
     JobStatus,
 )
 from app.services.detector_service import detector_service
 from app.services.detection_store import detection_store
 
-router = APIRouter(prefix="/detections", tags=["detections"])
+router = APIRouter(tags=["detections"])
 
 
-@router.post("", response_model=DetectionResponse, status_code=status.HTTP_200_OK)
-def create_detection(request: DetectionRequest):
+@router.post(
+    "/spills/{spill_id}/detect",
+    response_model=DetectionResponse,
+    status_code=status.HTTP_200_OK,
+)
+def create_detection_for_spill(spill_id: str):
+    spill = SPILL_STORE.get(spill_id)
+    if not spill:
+        raise HTTPException(status_code=404, detail="Spill not found.")
+
+    file_path = spill.get("saved_path")
+    if not file_path:
+        raise HTTPException(status_code=400, detail="Uploaded spill has no saved file path.")
+
     now = datetime.now(timezone.utc)
     job_id = uuid4()
 
     queued_job = DetectionResponse(
         job_id=job_id,
-        scene_id=request.scene_id,
+        scene_id=spill_id,
         status=JobStatus.QUEUED,
         message="Detection job queued.",
         artifacts=None,
@@ -46,14 +58,14 @@ def create_detection(request: DetectionRequest):
 
     try:
         raw = detector_service.run(
-            file_path=request.file_path,
-            scene_id=request.scene_id,
+            file_path=file_path,
+            scene_id=spill_id,
         )
         normalized = detector_service.normalize(raw)
 
         final_job = DetectionResponse(
             job_id=job_id,
-            scene_id=request.scene_id,
+            scene_id=spill_id,
             status=JobStatus(normalized["status"]),
             message=normalized["message"],
             artifacts=ArtifactRefs(**normalized["artifacts"]),
@@ -63,6 +75,12 @@ def create_detection(request: DetectionRequest):
             updated_at=datetime.now(timezone.utc),
         )
         detection_store.save(final_job)
+
+        spill["status"] = "detected"
+        spill["detection_job_id"] = str(job_id)
+        spill["detected_at"] = final_job.updated_at
+        spill["detection_message"] = final_job.message
+
         return final_job
 
     except ValueError as exc:
@@ -74,7 +92,7 @@ def create_detection(request: DetectionRequest):
 
     failed_job = DetectionResponse(
         job_id=job_id,
-        scene_id=request.scene_id,
+        scene_id=spill_id,
         status=JobStatus.FAILED,
         message=message,
         artifacts=None,
@@ -85,13 +103,18 @@ def create_detection(request: DetectionRequest):
     )
     detection_store.save(failed_job)
 
+    spill["status"] = "detection_failed"
+    spill["detection_job_id"] = str(job_id)
+    spill["detected_at"] = failed_job.updated_at
+    spill["detection_message"] = failed_job.message
+
     return JSONResponse(
         status_code=500,
         content=failed_job.model_dump(mode="json"),
     )
 
 
-@router.get("/{job_id}", response_model=DetectionResponse, status_code=status.HTTP_200_OK)
+@router.get("/detections/{job_id}", response_model=DetectionResponse, status_code=status.HTTP_200_OK)
 def get_detection(job_id: str):
     job = detection_store.get(job_id)
     if not job:

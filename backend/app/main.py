@@ -4,11 +4,11 @@ from fastapi.responses import JSONResponse
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from backend.app.api.routes.drift import router as drift_router
-from backend.app.core.config import settings
-from backend.app.api.routes import system, scenes, detections, spills
-from backend.app.api.routes.candidates import router as candidates_router
-from backend.app.api.routes.reports import router as reports_router
+from app.api.routes.drift import router as drift_router
+from app.core.config import settings
+from app.api.routes import system, scenes, detections, spills
+from app.api.routes.candidates import router as candidates_router
+from app.api.routes.reports import router as reports_router
 
 app = FastAPI(title=settings.app_name)
 
