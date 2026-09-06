@@ -22,8 +22,8 @@ from shapely.geometry import LineString, mapping
 # 1. Global Configuration & Constants
 # ==========================================
 # CHANGE 1: Point to the new test-fixture sandbox folder
-DAY4_GEOJSON_PATH = "test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_002/slick_geometry.geojson"
-DAY5_DIR = "test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_002"
+DAY4_GEOJSON_PATH = "test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003/slick_geometry.geojson"
+DAY5_DIR = "test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003"
 
 os.makedirs(DAY5_DIR, exist_ok=True)
 
@@ -123,8 +123,8 @@ def run_operational_hindcast():
     # Export Drift Metadata for Pratyush
     # CHANGE 3: Export strict Drift Metadata for Pratyush API contract
     drift_metadata = {
-        "spill_id": "SPILL_TEST_FIXTURE_AIS_002",
-        "drift_run_id": "drift_validation_sim_002",
+        "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
+        "drift_run_id": "drift_validation_sim_003",
         "hindcast_duration_minutes": HINDCAST_MINUTES,
         "time_step_minutes": TIME_STEP_MINUTES,
         "mode": "analyst-parameter-driven",
@@ -194,7 +194,7 @@ def run_controlled_simulation():
     error_m = geodesic((known_lat, known_lon), (pred_lat, pred_lon)).meters
 
     payload = {
-        "spill_id": "drift_validation_sim_002",
+        "spill_id": "drift_validation_sim_003",
         "data_mode": "controlled_simulation",
         "synthetic_data": True,
         "synthetic_data_scope": "drift_engine_validation_only",

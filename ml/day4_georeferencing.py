@@ -12,8 +12,8 @@ SAR_PATH = "test3.tiff"
 CLEAN_MASK_PATH = "day3_outputs/post_cleanup_mask_final.png"
 PROB_PATH = "day1_output_results/test1_scene_pytorch_prob.tif"
 
-# CHANGE 1: Output directory points to the new 002 sandbox folder
-DAY4_DIR = "test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_002"
+# CHANGE 1: Output directory points to the new 003 sandbox folder
+DAY4_DIR = "test_fixture_outputs/SPILL_TEST_FIXTURE_AIS_003"
 os.makedirs(DAY4_DIR, exist_ok=True)
 
 # 1. Load Data (Keeping this so script doesn't break, even if we override geometry later)
@@ -30,10 +30,10 @@ with rasterio.open(CLEAN_MASK_PATH) as src:
 print("Injecting synthetic Test Fixture geometry for Gulf of Mexico...")
 
 # Hardcoded coordinates from Pratyush's hint
-centroid_lon = -90.480124
-centroid_lat = 29.699723
-# Increase offset from 0.005 to 0.05 to create a much larger ~10km polygon
-offset = 0.05 
+# Hardcoded coordinates from Pratyush's density check
+centroid_lon = -90.212225
+centroid_lat = 29.133685
+offset = 0.05
 
 synthetic_polygon = Polygon([
     (centroid_lon - offset, centroid_lat - offset),
@@ -70,8 +70,8 @@ pixel_count_after = int(np.sum(clean_mask > 0))
 pixel_count_before = 159232 
 
 metadata = {
-    # CHANGE 2: Update Spill ID to 002
-    "spill_id": "SPILL_TEST_FIXTURE_AIS_002",
+    # CHANGE 2: Update Spill ID to 003
+    "spill_id": "SPILL_TEST_FIXTURE_AIS_003",
     
     # CHANGE 3: Update Timestamp to perfectly align with AIS window
     "acquisition_start_utc": "2025-01-08T00:10:00Z",
