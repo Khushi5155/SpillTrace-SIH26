@@ -106,3 +106,5 @@ metadata = {
 with open(os.path.join(DAY4_DIR, "slick_geometry_metadata.json"), "w") as f:
     json.dump(metadata, f, indent=4)
 print("Saved Day 4 metadata contract.")
+
+#test
