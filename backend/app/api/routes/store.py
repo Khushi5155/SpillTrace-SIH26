@@ -1,0 +1,1 @@
+SPILL_STORE: dict[str, dict] = {}
