@@ -1,0 +1,8 @@
+{
+"type": "FeatureCollection",
+"name": "slick_geometry",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "slick_id": 1, "centroid": [ -90.212225, 29.133685 ], "bounding_box": [ -90.262225, 29.083685, -90.162225, 29.183685 ], "area_km2": 1.2, "perimeter_m": 4440.0, "orientation": 0.0, "compactness": 0.78, "confidence": 0.99 }, "geometry": { "type": "Polygon", "coordinates": [ [ [ -90.262225, 29.083685 ], [ -90.162225, 29.083685 ], [ -90.162225, 29.183685 ], [ -90.262225, 29.183685 ], [ -90.262225, 29.083685 ] ] ] } }
+]
+}
