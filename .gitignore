@@ -83,6 +83,11 @@ ml/audit_outputs/
 ml/day3_outputs/
 # ml/day4_outputs/
 # ml/day5_outputs/
+ml/ais_output_results/
+ml/test_fixture_outputs/
+ml/test1.tiff
+ml/requirements_ml.txt
+
 
 # Local SAR data and test payloads
 backend/data/
