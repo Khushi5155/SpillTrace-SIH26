@@ -1,0 +1,14 @@
+{
+  "spill_id": "SPILL_SYNTHETIC_DEMO_TEST1",
+  "data_mode": "TEST_FIXTURE",
+  "technical_ranking_demo_eligible": true,
+  "real_world_attribution_eligible": false,
+  "candidate_ranking_enabled": "pending_backend_contract",
+  "compatibility_state": "test_fixture_pending_backend_policy",
+  "blocking_or_limitation_reasons": [
+    "AIS tracks are synthetic demonstration data.",
+    "SAR timestamp may be unverified unless extracted from source metadata.",
+    "Environmental forcing is analyst-parameter-driven.",
+    "This scenario is not valid for real-world vessel attribution."
+  ]
+}
