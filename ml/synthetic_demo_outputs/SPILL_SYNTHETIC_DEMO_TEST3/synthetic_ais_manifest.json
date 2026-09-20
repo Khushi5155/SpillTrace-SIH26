@@ -1,0 +1,13 @@
+{
+  "spill_id": "SPILL_SYNTHETIC_DEMO_TEST3",
+  "data_mode": "TEST_FIXTURE",
+  "scenario_label": "Synthetic AIS Demonstration Scenario",
+  "ais_data_origin": "SYNTHETIC",
+  "disclosure": "Synthetic AIS Demonstration Scenario. Candidate rankings demonstrate the explainable algorithm and are not real-world vessel attribution.",
+  "random_seed": 45,
+  "vessel_count": 18,
+  "total_point_count": 158,
+  "pattern_distribution": {
+    "corridor_intersecting_track": 1
+  }
+}
