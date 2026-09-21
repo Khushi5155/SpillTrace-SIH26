@@ -1,0 +1,36 @@
+{
+  "input_file": "data\\sar\\test3.tiff",
+  "file_size_bytes": 27489026,
+  "raster_width": 6582,
+  "raster_height": 4171,
+  "band_count": 1,
+  "raster_crs": null,
+  "raster_transform": [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0
+  ],
+  "bounds_native_crs": [
+    0.0,
+    4171.0,
+    6582.0,
+    0.0
+  ],
+  "bounds_epsg4326_when_valid": null,
+  "nodata": 0.0,
+  "available_tags": {
+    "TIFFTAG_IMAGEDESCRIPTION": "Sentinel-1A IW GRD HR L1",
+    "TIFFTAG_SOFTWARE": "Sentinel-1 IPF 003.31",
+    "TIFFTAG_DATETIME": "2021:10:13 07:42:26",
+    "AREA_OR_POINT": "Area"
+  },
+  "acquisition_start_utc": null,
+  "acquisition_end_utc": null,
+  "timestamp_source_verified": false,
+  "timestamp_source": "scenario-configured-for-synthetic-AIS-demo",
+  "georeferencing_status": "UNVERIFIED_OR_MISSING",
+  "georeferencing_notes": "Spatial transform is identity or CRS unassigned"
+}

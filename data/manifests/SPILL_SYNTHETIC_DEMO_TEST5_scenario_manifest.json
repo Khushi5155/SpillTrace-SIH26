@@ -1,0 +1,17 @@
+{
+  "spill_id": "SPILL_SYNTHETIC_DEMO_TEST5",
+  "data_mode": "TEST_FIXTURE",
+  "scenario_label": "Synthetic AIS Demonstration Scenario",
+  "ais_data_origin": "SYNTHETIC",
+  "synthetic_data_disclosure_required": true,
+  "timestamp_source_verified": false,
+  "georeferencing_independently_verified": false,
+  "environmental_mode": "analyst-parameter-driven",
+  "real_world_attribution_claim_allowed": false,
+  "sar_input_path": "data\\sar\\test5.tiff",
+  "slick_geometry_path": "ml\\synthetic_demo_outputs\\SPILL_SYNTHETIC_DEMO_TEST5\\slick_geometry.geojson",
+  "drift_metadata_path": "ml\\synthetic_demo_outputs\\SPILL_SYNTHETIC_DEMO_TEST5\\drift_metadata.json",
+  "origin_corridor_path": "ml\\synthetic_demo_outputs\\SPILL_SYNTHETIC_DEMO_TEST5\\origin_corridor.geojson",
+  "synthetic_ais_parquet_path": "ml\\synthetic_demo_outputs\\SPILL_SYNTHETIC_DEMO_TEST5\\synthetic_ais_tracks.parquet",
+  "synthetic_ais_geojson_path": "ml\\synthetic_demo_outputs\\SPILL_SYNTHETIC_DEMO_TEST5\\synthetic_ais_tracks.geojson"
+}
