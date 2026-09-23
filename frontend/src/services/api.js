@@ -328,6 +328,7 @@ export const getAisTracks = async (
     corridorGeojson,
     mmsi,
     limit,
+    scenarioId,
   } = {}
 ) => {
   if (!spillId) {
@@ -367,6 +368,9 @@ export const getAisTracks = async (
 
   if (mmsi) params.mmsi = mmsi;
   if (limit) params.limit = limit;
+  // Synthetic AIS is intentionally opt-in. Without this parameter the
+  // backend follows its normal real-AIS-only path.
+  if (scenarioId) params.scenario_id = scenarioId;
 
   return (
     await api.get(`${API_V1_BASE}/ais/tracks`, { params })

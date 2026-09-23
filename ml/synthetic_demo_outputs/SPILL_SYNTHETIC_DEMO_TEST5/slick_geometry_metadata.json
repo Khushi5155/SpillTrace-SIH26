@@ -1,0 +1,22 @@
+{
+  "spill_id": "SPILL_SYNTHETIC_DEMO_TEST5",
+  "input_sar_path": "data\\sar\\test5.tiff",
+  "data_mode": "TEST_FIXTURE",
+  "scenario_label": "Synthetic AIS Demonstration Scenario",
+  "ais_data_origin": "SYNTHETIC",
+  "synthetic_data_disclosure_required": true,
+  "timestamp_source_verified": false,
+  "georeferencing_independently_verified": false,
+  "real_world_attribution_claim_allowed": false,
+  "output_crs": "EPSG:4326",
+  "detector_name": "SpillTrace DeepLabV3+ Engine",
+  "model_name": "ResNet50DeepLabV3Plus",
+  "model_status": "COMPLETED",
+  "oil_class_index": 1,
+  "classification_method": "DeepLabV3+ Sliding Window Softmax",
+  "probability_threshold": 0.5,
+  "geometry_status": "VALID",
+  "limitations": [
+    "Synthetic AIS Demonstration Scenario. Candidate rankings demonstrate the explainable algorithm and are not real-world vessel attribution."
+  ]
+}

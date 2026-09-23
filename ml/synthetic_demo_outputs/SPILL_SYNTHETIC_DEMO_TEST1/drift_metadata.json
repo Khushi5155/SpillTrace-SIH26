@@ -1,0 +1,24 @@
+{
+  "spill_id": "SPILL_SYNTHETIC_DEMO_TEST1",
+  "data_mode": "TEST_FIXTURE",
+  "scenario_label": "Synthetic AIS Demonstration Scenario",
+  "ais_data_origin": "SYNTHETIC",
+  "environmental_mode": "analyst-parameter-driven",
+  "wind_current_source": "analyst-configured parameters",
+  "timestamp_source_verified": false,
+  "real_world_attribution_claim_allowed": false,
+  "random_seed": 43,
+  "wind_speed_knots": 12.5,
+  "wind_direction_degrees": 225.0,
+  "current_speed_knots": 0.8,
+  "current_direction_degrees": 180.0,
+  "origin_window_start_utc": "2026-03-01T05:00:00+00:00",
+  "origin_window_end_utc": "2026-03-01T07:00:00+00:00",
+  "uncertainty_radius_m": 1500.0,
+  "origin_corridor_path": "ml/synthetic_demo_outputs/SPILL_SYNTHETIC_DEMO_TEST1/origin_corridor.geojson",
+  "limitations": [
+    "Wind/current forcing is analyst-parameter-driven.",
+    "Synthetic AIS tracks are used only for algorithm demonstration.",
+    "This is not independently verified real-world SAR-to-vessel attribution."
+  ]
+}

@@ -13,3 +13,4 @@ shapely
 # module in this backend currently needs these.
 pandas
 pyarrow
+parquet

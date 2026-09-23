@@ -1,0 +1,997 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "mmsi": "999045001",
+        "vessel_name": "DEMO_VESSEL_01",
+        "vessel_type": "Tug",
+        "pattern_category": "corridor_intersecting_track",
+        "scenario_id": "SPILL_SYNTHETIC_DEMO_TEST3",
+        "is_synthetic": true,
+        "data_mode": "TEST_FIXTURE",
+        "ais_data_origin": "SYNTHETIC",
+        "scenario_label": "Synthetic AIS Demonstration Scenario",
+        "point_count": 11
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            70.8521785363561,
+            19.248658860540825
+          ],
+          [
+            70.89249309697902,
+            19.289519049021372
+          ],
+          [
+            70.93302099759889,
+            19.330433613359748
+          ],
+          [
+            70.97480042707332,
+            19.370797612679524
+          ],
+          [
+            71.01634279007644,
+            19.411360122890088
+          ],
+          [
+            71.05822542045212,
+            19.4531265460276
+          ],
+          [
+            71.09893992894001,
+            19.495115187076696
+          ],
+          [
+            71.14066702027293,
+            19.535557577616352
+          ],
+          [
+            71.18177577093053,
+            19.577250967687817
+          ],
+          [
+            71.22391417531449,
+            19.617887877966442
+          ],
+          [
+            71.26471038918432,
+            19.65973055184441
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mmsi": "999045002",
+        "vessel_name": "DEMO_VESSEL_02",
+        "vessel_type": "Tug",
+        "pattern_category": "corridor_intersecting_track",
+        "scenario_id": "SPILL_SYNTHETIC_DEMO_TEST3",
+        "is_synthetic": true,
+        "data_mode": "TEST_FIXTURE",
+        "ais_data_origin": "SYNTHETIC",
+        "scenario_label": "Synthetic AIS Demonstration Scenario",
+        "point_count": 8
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            70.85058503327618,
+            19.248508916609918
+          ],
+          [
+            70.89070283966691,
+            19.289098028488254
+          ],
+          [
+            70.93048356238693,
+            19.32889121166665
+          ],
+          [
+            70.97046713272287,
+            19.368852522917408
+          ],
+          [
+            71.01059096813485,
+            19.408080528695773
+          ],
+          [
+            71.05063688748223,
+            19.447785329928706
+          ],
+          [
+            71.09010368844149,
+            19.48692410862312
+          ],
+          [
+            71.12913503712896,
+            19.52722075903573
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mmsi": "999045003",
+        "vessel_name": "DEMO_VESSEL_03",
+        "vessel_type": "Tanker",
+        "pattern_category": "corridor_intersecting_track",
+        "scenario_id": "SPILL_SYNTHETIC_DEMO_TEST3",
+        "is_synthetic": true,
+        "data_mode": "TEST_FIXTURE",
+        "ais_data_origin": "SYNTHETIC",
+        "scenario_label": "Synthetic AIS Demonstration Scenario",
+        "point_count": 11
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            70.85978613862814,
+            19.25714975065928
+          ],
+          [
+            70.90870391683607,
+            19.306476191056937
+          ],
+          [
+            70.95797039224358,
+            19.355754200146457
+          ],
+          [
+            71.00625182488231,
+            19.40494224338926
+          ],
+          [
+            71.0562150414378,
+            19.454348472924806
+          ],
+          [
+            71.10545930796945,
+            19.50376676227799
+          ],
+          [
+            71.15516026109665,
+            19.552560975619105
+          ],
+          [
+            71.20365428357002,
+            19.600738775327013
+          ],
+          [
+            71.25237103348914,
+            19.649698982383114
+          ],
+          [
+            71.30226341852337,
+            19.69786260344246
+          ],
+          [
+            71.35225085939811,
+            19.74744631433879
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mmsi": "999045004",
+        "vessel_name": "DEMO_VESSEL_04",
+        "vessel_type": "Tug",
+        "pattern_category": "corridor_intersecting_track",
+        "scenario_id": "SPILL_SYNTHETIC_DEMO_TEST3",
+        "is_synthetic": true,
+        "data_mode": "TEST_FIXTURE",
+        "ais_data_origin": "SYNTHETIC",
+        "scenario_label": "Synthetic AIS Demonstration Scenario",
+        "point_count": 11
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            70.85934318242069,
+            19.255703059162318
+          ],
+          [
+            70.90657181278516,
+            19.303221002936606
+          ],
+          [
+            70.95375080350851,
+            19.349709780366595
+          ],
+          [
+            70.99998762052094,
+            19.397841275802815
+          ],
+          [
+            71.04786765034177,
+            19.444222859676117
+          ],
+          [
+            71.09528041476135,
+            19.491984426242738
+          ],
+          [
+            71.14326035029079,
+            19.538305177399778
+          ],
+          [
+            71.1897163126218,
+            19.58528102336072
+          ],
+          [
+            71.23711329541452,
+            19.63163785119718
+          ],
+          [
+            71.28469621631962,
+            19.679338623181508
+          ],
+          [
+            71.33178120014439,
+            19.727228088632504
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mmsi": "999045005",
+        "vessel_name": "DEMO_VESSEL_05",
+        "vessel_type": "Passenger",
+        "pattern_category": "nearby_late_track",
+        "scenario_id": "SPILL_SYNTHETIC_DEMO_TEST3",
+        "is_synthetic": true,
+        "data_mode": "TEST_FIXTURE",
+        "ais_data_origin": "SYNTHETIC",
+        "scenario_label": "Synthetic AIS Demonstration Scenario",
+        "point_count": 10
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            70.97068695735717,
+            19.424159740255106
+          ],
+          [
+            71.03117687735718,
+            19.38882253569229
+          ],
+          [
+            71.09108092616155,
+            19.355011931455337
+          ],
+          [
+            71.15118894980559,
+            19.319998356391007
+          ],
+          [
+            71.21064175887204,
+            19.286289104541765
+          ],
+          [
+            71.26979736726432,
+            19.2527152848966
+          ],
+          [
+            71.32930493634704,
+            19.218274158104037
+          ],
+          [
+            71.38944517675735,
+            19.184154802275653
+          ],
+          [
+            71.44935013230322,
+            19.150408241260727
+          ],
+          [
+            71.50935493680234,
+            19.116759044963793
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mmsi": "999045006",
+        "vessel_name": "DEMO_VESSEL_06",
+        "vessel_type": "Cargo",
+        "pattern_category": "nearby_late_track",
+        "scenario_id": "SPILL_SYNTHETIC_DEMO_TEST3",
+        "is_synthetic": true,
+        "data_mode": "TEST_FIXTURE",
+        "ais_data_origin": "SYNTHETIC",
+        "scenario_label": "Synthetic AIS Demonstration Scenario",
+        "point_count": 9
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            70.96556728511081,
+            19.425619264466263
+          ],
+          [
+            71.0207173848354,
+            19.39365900372238
+          ],
+          [
+            71.07593002016623,
+            19.36258499272554
+          ],
+          [
+            71.13172113905131,
+            19.3314902948074
+          ],
+          [
+            71.18730571449441,
+            19.299551431475688
+          ],
+          [
+            71.24131963384691,
+            19.268389313028386
+          ],
+          [
+            71.29721744063852,
+            19.23661427141105
+          ],
+          [
+            71.35292362072815,
+            19.20504483371065
+          ],
+          [
+            71.40760171667182,
+            19.174008001469613
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mmsi": "999045007",
+        "vessel_name": "DEMO_VESSEL_07",
+        "vessel_type": "Cargo",
+        "pattern_category": "nearby_late_track",
+        "scenario_id": "SPILL_SYNTHETIC_DEMO_TEST3",
+        "is_synthetic": true,
+        "data_mode": "TEST_FIXTURE",
+        "ais_data_origin": "SYNTHETIC",
+        "scenario_label": "Synthetic AIS Demonstration Scenario",
+        "point_count": 8
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            70.9787656768629,
+            19.418842185557807
+          ],
+          [
+            71.04693673673778,
+            19.378795485853953
+          ],
+          [
+            71.11514293338684,
+            19.33979533217903
+          ],
+          [
+            71.18387708696478,
+            19.300491102122795
+          ],
+          [
+            71.25282272298828,
+            19.260822818817097
+          ],
+          [
+            71.3213771977198,
+            19.220534504113424
+          ],
+          [
+            71.39009084210643,
+            19.18138187451522
+          ],
+          [
+            71.45873699553115,
+            19.14249098318914
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mmsi": "999045008",
+        "vessel_name": "DEMO_VESSEL_08",
+        "vessel_type": "Cargo",
+        "pattern_category": "nearby_late_track",
+        "scenario_id": "SPILL_SYNTHETIC_DEMO_TEST3",
+        "is_synthetic": true,
+        "data_mode": "TEST_FIXTURE",
+        "ais_data_origin": "SYNTHETIC",
+        "scenario_label": "Synthetic AIS Demonstration Scenario",
+        "point_count": 8
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            70.97771282455987,
+            19.420301077551986
+          ],
+          [
+            71.04500033279847,
+            19.38190224576214
+          ],
+          [
+            71.11124068448066,
+            19.343379698821508
+          ],
+          [
+            71.17786921669853,
+            19.304879561856907
+          ],
+          [
+            71.24566514844003,
+            19.26598990423897
+          ],
+          [
+            71.31165290668814,
+            19.226581036921274
+          ],
+          [
+            71.37867873622349,
+            19.18861469031727
+          ],
+          [
+            71.44472508852567,
+            19.14978543465052
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mmsi": "999045009",
+        "vessel_name": "DEMO_VESSEL_09",
+        "vessel_type": "Tug",
+        "pattern_category": "timely_far_track",
+        "scenario_id": "SPILL_SYNTHETIC_DEMO_TEST3",
+        "is_synthetic": true,
+        "data_mode": "TEST_FIXTURE",
+        "ais_data_origin": "SYNTHETIC",
+        "scenario_label": "Synthetic AIS Demonstration Scenario",
+        "point_count": 10
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            71.27283927246847,
+            19.641297700352688
+          ],
+          [
+            71.23520320052752,
+            19.575450185151507
+          ],
+          [
+            71.1976232407024,
+            19.508234809052986
+          ],
+          [
+            71.1593185034756,
+            19.441239918854095
+          ],
+          [
+            71.12013690919908,
+            19.37562696932451
+          ],
+          [
+            71.08208118477518,
+            19.30907261475731
+          ],
+          [
+            71.04423853089676,
+            19.2433028214103
+          ],
+          [
+            71.00579531145209,
+            19.176050783770275
+          ],
+          [
+            70.96822352473829,
+            19.109597603250023
+          ],
+          [
+            70.92968493999868,
+            19.04251818657495
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mmsi": "999045010",
+        "vessel_name": "DEMO_VESSEL_10",
+        "vessel_type": "Tug",
+        "pattern_category": "timely_far_track",
+        "scenario_id": "SPILL_SYNTHETIC_DEMO_TEST3",
+        "is_synthetic": true,
+        "data_mode": "TEST_FIXTURE",
+        "ais_data_origin": "SYNTHETIC",
+        "scenario_label": "Synthetic AIS Demonstration Scenario",
+        "point_count": 9
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            71.27159032256517,
+            19.638367743436383
+          ],
+          [
+            71.23057604917265,
+            19.569009729374944
+          ],
+          [
+            71.18963511242161,
+            19.4985258909881
+          ],
+          [
+            71.14882473519292,
+            19.428980664781484
+          ],
+          [
+            71.10821156053369,
+            19.358346677525585
+          ],
+          [
+            71.0673611963067,
+            19.28931959332958
+          ],
+          [
+            71.02733143981503,
+            19.21952947703941
+          ],
+          [
+            70.98689476448246,
+            19.148958907792313
+          ],
+          [
+            70.94566038959407,
+            19.079563745640883
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mmsi": "999045011",
+        "vessel_name": "DEMO_VESSEL_11",
+        "vessel_type": "Tanker",
+        "pattern_category": "timely_far_track",
+        "scenario_id": "SPILL_SYNTHETIC_DEMO_TEST3",
+        "is_synthetic": true,
+        "data_mode": "TEST_FIXTURE",
+        "ais_data_origin": "SYNTHETIC",
+        "scenario_label": "Synthetic AIS Demonstration Scenario",
+        "point_count": 9
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            71.28341910200515,
+            19.65923060493339
+          ],
+          [
+            71.25505351629705,
+            19.610549299683775
+          ],
+          [
+            71.22692157232167,
+            19.561153912754005
+          ],
+          [
+            71.19795465517194,
+            19.511790155909857
+          ],
+          [
+            71.16915671962674,
+            19.461529179922692
+          ],
+          [
+            71.13983880647743,
+            19.411133249527715
+          ],
+          [
+            71.11156466017854,
+            19.361274190847567
+          ],
+          [
+            71.08389866679829,
+            19.312497315178916
+          ],
+          [
+            71.05482567877623,
+            19.2620910728874
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mmsi": "999045012",
+        "vessel_name": "DEMO_VESSEL_12",
+        "vessel_type": "Passenger",
+        "pattern_category": "reduced_continuity_track",
+        "scenario_id": "SPILL_SYNTHETIC_DEMO_TEST3",
+        "is_synthetic": true,
+        "data_mode": "TEST_FIXTURE",
+        "ais_data_origin": "SYNTHETIC",
+        "scenario_label": "Synthetic AIS Demonstration Scenario",
+        "point_count": 5
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            70.9139563884144,
+            19.338927279145423
+          ],
+          [
+            70.96621788887926,
+            19.36926092291662
+          ],
+          [
+            71.01924462992524,
+            19.40002728609941
+          ],
+          [
+            71.07150723387363,
+            19.43032711840942
+          ],
+          [
+            71.12356471292193,
+            19.460172000086462
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mmsi": "999045013",
+        "vessel_name": "DEMO_VESSEL_13",
+        "vessel_type": "Cargo",
+        "pattern_category": "reduced_continuity_track",
+        "scenario_id": "SPILL_SYNTHETIC_DEMO_TEST3",
+        "is_synthetic": true,
+        "data_mode": "TEST_FIXTURE",
+        "ais_data_origin": "SYNTHETIC",
+        "scenario_label": "Synthetic AIS Demonstration Scenario",
+        "point_count": 5
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            70.93182453335027,
+            19.349283028965928
+          ],
+          [
+            71.00102739364615,
+            19.39034295579075
+          ],
+          [
+            71.07175469970502,
+            19.431530270880618
+          ],
+          [
+            71.1407574660618,
+            19.47230984107054
+          ],
+          [
+            71.21046519552971,
+            19.513152150833097
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mmsi": "999045014",
+        "vessel_name": "DEMO_VESSEL_14",
+        "vessel_type": "Passenger",
+        "pattern_category": "reduced_continuity_track",
+        "scenario_id": "SPILL_SYNTHETIC_DEMO_TEST3",
+        "is_synthetic": true,
+        "data_mode": "TEST_FIXTURE",
+        "ais_data_origin": "SYNTHETIC",
+        "scenario_label": "Synthetic AIS Demonstration Scenario",
+        "point_count": 5
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            70.93634821030933,
+            19.351830329541592
+          ],
+          [
+            71.01119915022707,
+            19.39549632707182
+          ],
+          [
+            71.08544908975843,
+            19.438252396432553
+          ],
+          [
+            71.16123573962834,
+            19.48154946285279
+          ],
+          [
+            71.23636019436879,
+            19.52559483255415
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mmsi": "999045015",
+        "vessel_name": "DEMO_VESSEL_15",
+        "vessel_type": "Tanker",
+        "pattern_category": "non_intersecting_track",
+        "scenario_id": "SPILL_SYNTHETIC_DEMO_TEST3",
+        "is_synthetic": true,
+        "data_mode": "TEST_FIXTURE",
+        "ais_data_origin": "SYNTHETIC",
+        "scenario_label": "Synthetic AIS Demonstration Scenario",
+        "point_count": 11
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            70.49486512736193,
+            18.957971678602565
+          ],
+          [
+            70.42781179807068,
+            18.95836109294566
+          ],
+          [
+            70.36193238055786,
+            18.958989280322214
+          ],
+          [
+            70.29446571262415,
+            18.959974042525154
+          ],
+          [
+            70.22698401730483,
+            18.958978501953034
+          ],
+          [
+            70.16013650810613,
+            18.959526421966807
+          ],
+          [
+            70.0938544922568,
+            18.959472575990112
+          ],
+          [
+            70.02719079005293,
+            18.960104455220748
+          ],
+          [
+            69.96118051875293,
+            18.959318018381133
+          ],
+          [
+            69.89455895722071,
+            18.95988256979207
+          ],
+          [
+            69.82835002417757,
+            18.959550130274884
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mmsi": "999045016",
+        "vessel_name": "DEMO_VESSEL_16",
+        "vessel_type": "Passenger",
+        "pattern_category": "non_intersecting_track",
+        "scenario_id": "SPILL_SYNTHETIC_DEMO_TEST3",
+        "is_synthetic": true,
+        "data_mode": "TEST_FIXTURE",
+        "ais_data_origin": "SYNTHETIC",
+        "scenario_label": "Synthetic AIS Demonstration Scenario",
+        "point_count": 10
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            70.49058129844087,
+            18.958079663150126
+          ],
+          [
+            70.41989094970103,
+            18.957340007025667
+          ],
+          [
+            70.3504040224056,
+            18.95696325656021
+          ],
+          [
+            70.28069771211356,
+            18.957816082139125
+          ],
+          [
+            70.21145244415224,
+            18.958485601444465
+          ],
+          [
+            70.14137132279758,
+            18.958517739940717
+          ],
+          [
+            70.07033100193244,
+            18.95886954629027
+          ],
+          [
+            70.00026299402221,
+            18.958552556186017
+          ],
+          [
+            69.93089463882305,
+            18.959056998101463
+          ],
+          [
+            69.8613921123052,
+            18.95873861242397
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mmsi": "999045017",
+        "vessel_name": "DEMO_VESSEL_17",
+        "vessel_type": "Tug",
+        "pattern_category": "non_intersecting_track",
+        "scenario_id": "SPILL_SYNTHETIC_DEMO_TEST3",
+        "is_synthetic": true,
+        "data_mode": "TEST_FIXTURE",
+        "ais_data_origin": "SYNTHETIC",
+        "scenario_label": "Synthetic AIS Demonstration Scenario",
+        "point_count": 8
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            70.4898978165777,
+            18.958350852570753
+          ],
+          [
+            70.41760739998712,
+            18.9590958083087
+          ],
+          [
+            70.34594295520598,
+            18.9584427213219
+          ],
+          [
+            70.27435998032102,
+            18.959159971172134
+          ],
+          [
+            70.20193568187668,
+            18.95849089363417
+          ],
+          [
+            70.13046128273776,
+            18.957766049956753
+          ],
+          [
+            70.05924422646514,
+            18.95798418514848
+          ],
+          [
+            69.98745115321803,
+            18.957889791580143
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "mmsi": "999045018",
+        "vessel_name": "DEMO_VESSEL_18",
+        "vessel_type": "Passenger",
+        "pattern_category": "non_intersecting_track",
+        "scenario_id": "SPILL_SYNTHETIC_DEMO_TEST3",
+        "is_synthetic": true,
+        "data_mode": "TEST_FIXTURE",
+        "ais_data_origin": "SYNTHETIC",
+        "scenario_label": "Synthetic AIS Demonstration Scenario",
+        "point_count": 10
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            70.4911494278051,
+            18.958884498005784
+          ],
+          [
+            70.42115428141466,
+            18.95976142717634
+          ],
+          [
+            70.3523887226915,
+            18.959825588190117
+          ],
+          [
+            70.28282135354121,
+            18.95893685259607
+          ],
+          [
+            70.21328151559167,
+            18.95857257020609
+          ],
+          [
+            70.14420649621798,
+            18.95949179047315
+          ],
+          [
+            70.07473470022728,
+            18.95954074109553
+          ],
+          [
+            70.0052011839639,
+            18.9599025891358
+          ],
+          [
+            69.93504754707567,
+            18.959592156410125
+          ],
+          [
+            69.86616321649245,
+            18.959266139162715
+          ]
+        ]
+      }
+    }
+  ]
+}
