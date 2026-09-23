@@ -694,16 +694,28 @@ export default function Investigation() {
       // capture date; anchoring to "now" means a scene from a real dataset
       // (e.g. Jan 2025) can never overlap a query centred on today's date.
       const centroid = detection?.metadata?.centroid;
+      const isTestFixture =
+        manifest?.data_mode === "TEST_FIXTURE";
+
+      // The TEST_FIXTURE tracks and corridor are deliberately precomputed in
+      // a synthetic coordinate/time window. Do not filter them using a live
+      // model detection centroid, which belongs to the uploaded raster and
+      // can be unrelated to the labelled demonstration fixture.
+      const scenarioId = isTestFixture
+        ? (manifest?.scenario_id || scene?.scene_id)
+        : undefined;
 
       const response = await getAisTracks(spillId, {
+        startTime: scene?.acquisition_start_utc || undefined,
         endTime:
           scene?.acquisition_end_utc ||
           scene?.acquisition_start_utc ||
           detection?.detected_at ||
           undefined,
-        lat: Array.isArray(centroid) ? centroid[1] : undefined,
-        lon: Array.isArray(centroid) ? centroid[0] : undefined,
-        radiusKm: Array.isArray(centroid) ? 50 : undefined,
+        lat: !isTestFixture && Array.isArray(centroid) ? centroid[1] : undefined,
+        lon: !isTestFixture && Array.isArray(centroid) ? centroid[0] : undefined,
+        radiusKm: !isTestFixture && Array.isArray(centroid) ? 50 : undefined,
+        scenarioId,
       });
 
       const geo =
@@ -838,8 +850,9 @@ export default function Investigation() {
             drift.run_type || null,
 
           mode:
-            drift.data_mode ||
-            "analyst_parameter_driven",
+            manifest?.data_mode === "TEST_FIXTURE"
+              ? "TEST_FIXTURE"
+              : (drift.data_mode || "analyst_parameter_driven"),
 
           corridor_reference:
             drift.corridor?.type ||

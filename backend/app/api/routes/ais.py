@@ -43,6 +43,14 @@ class AISTrackFeatureProperties(BaseModel):
     callsign: str | None = None
     positions: list[AISPosition] = Field(default_factory=list)
     quality: AISQuality = Field(default_factory=AISQuality)
+    # Present only for an explicitly selected TEST_FIXTURE scenario.  Keeping
+    # this field in the response model prevents FastAPI/Pydantic from dropping
+    # the evidence-derived inputs before the ranking UI receives them.
+    candidate_input: dict[str, Any] | None = None
+    scenario_id: str | None = None
+    data_mode: str | None = None
+    ais_data_origin: str | None = None
+    is_synthetic: bool | None = None
 
 
 class AISTrackFeature(BaseModel):
@@ -62,7 +70,7 @@ class AISTrackFeatureCollection(BaseModel):
     # for a real query that legitimately matched nothing). They are
     # additive: existing code that only reads `.features` is unaffected.
     available: bool = True
-    source: Literal["real", "unavailable"] = "real"
+    source: Literal["real", "synthetic_test_fixture", "unavailable"] = "real"
     provenance: str | None = None
 
 
@@ -91,6 +99,10 @@ def get_ais_tracks(
     corridor_geojson: str | None = Query(None, description="GeoJSON string"),
     mmsi: str | None = Query(None),
     limit: int = Query(100, ge=1, le=1000),
+    scenario_id: str | None = Query(
+        None,
+        description="Explicit TEST_FIXTURE scenario ID; never defaults to synthetic data.",
+    ),
 ):
     if start_time >= end_time:
         raise HTTPException(status_code=400, detail="start_time must be before end_time")
@@ -132,6 +144,7 @@ def get_ais_tracks(
         corridor_geojson=corridor_geojson,
         mmsi=mmsi,
         limit=limit,
+        scenario_id=scenario_id,
     )
 
     return AISTrackFeatureCollection(
@@ -145,6 +158,7 @@ def get_ais_tracks(
             "radius_km": radius_km,
             "mmsi": mmsi,
             "limit": limit,
+            "scenario_id": scenario_id,
         },
         available=result.get("available", True),
         source=result.get("source", "real"),
