@@ -1,66 +1,66 @@
 import InvestigationStepper from "./InvestigationStepper";
 
-const STATUS = {
-  running: { label: "DETECTING", tone: "running" },
-  failed: { label: "DETECTION FAILED", tone: "failed" },
-  ready: { label: "DETECTION NOT RUN", tone: "idle" },
-  blocked: { label: "NO DETECTION", tone: "idle" },
-};
-
-export default function InvestigationHeader({
+function InvestigationHeader({
   title,
   spillId,
   sceneId,
   stages,
-  hasSlick,
-  detectionComplete,
   next,
   onGo,
   onExport,
   exporting,
   notices,
 }) {
-  let status = STATUS[stages.detection.state] || { label: "", tone: "idle" };
-  if (stages.detection.state === "complete") {
-    status = hasSlick
-      ? { label: "DETECTION COMPLETE", tone: "complete" }
-      : { label: detectionComplete ? "NO SLICK DETECTED" : "DETECTION COMPLETE", tone: "warn" };
-  }
+  const detection = stages.detection;
+  const status = detection.state === "complete"
+    ? { label: "DETECTION COMPLETE", tone: "complete" }
+    : detection.state === "running"
+      ? { label: "DETECTION RUNNING", tone: "running" }
+      : detection.state === "failed"
+        ? { label: "DETECTION FAILED", tone: "failed" }
+        : { label: "INVESTIGATION IN PROGRESS", tone: "warn" };
 
   return (
     <header className="inv-header">
       <div className="inv-header-main">
         <div className="inv-title">
-          <p className="eyebrow">SPILLTRACE / INVESTIGATION</p>
-          <h1 title={title}>{title}</h1>
-          <p className="inv-sub">
+          <p className="eyebrow">SPILLTRACE / INVESTIGATION WORKSPACE</p>
+          <div className="inv-title-row">
+            <h1 title={title}>{title}</h1>
             <span className={`status-pill status-${status.tone}`}>
               <span className="status-dot" /> {status.label}
             </span>
+          </div>
+          <div className="inv-sub">
             <span className="mono">ID {spillId}</span>
-            {sceneId && <span>Scene {sceneId}</span>}
-          </p>
+            {sceneId && <><span className="sub-divider">·</span><span>Scene {sceneId}</span></>}
+          </div>
         </div>
 
-        <div className="inv-header-side">
-          <InvestigationStepper stages={stages} next={next} onGo={onGo} />
-          <button type="button" className="btn btn-ghost btn-sm" onClick={onExport} disabled={exporting}>
-            {exporting ? "Exporting…" : "Export report"}
+        <div className="inv-header-actions">
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => onGo("detection")}>
+            Investigation flow
+          </button>
+          <button type="button" className="btn btn-primary btn-sm" onClick={onExport} disabled={exporting}>
+            {exporting ? "Preparing report…" : "Export Investigation Report"}
           </button>
         </div>
       </div>
 
-      {next && (
-        <div className="next-action">
-          <span className="next-label">NEXT</span>
-          <span>{next.text}</span>
-          <button type="button" className="link-button" onClick={() => onGo(next.stage)}>
-            Go to step ↓
-          </button>
-        </div>
-      )}
+      <div className="inv-progress-row">
+        <InvestigationStepper stages={stages} next={next} onGo={onGo} />
+        {next && (
+          <div className="next-action next-action-compact">
+            <span className="next-label">NEXT</span>
+            <span>{next.text}</span>
+            <button type="button" className="link-button" onClick={() => onGo(next.stage)}>Go to step →</button>
+          </div>
+        )}
+      </div>
 
       {notices}
     </header>
   );
 }
+
+export default InvestigationHeader;
