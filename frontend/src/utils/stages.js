@@ -69,7 +69,11 @@ export function computeStages({
 
   /* Ranking prerequisites */
   const driftDone = !!(hindcast.result || forecast.result);
-  const compatible = compatibility?.compatible === true;
+  // Compatibility is useful evidence, but an unavailable compatibility
+  // response should not make the ranking action impossible. An explicit
+  // backend incompatibility still blocks ranking.
+  const compatibilityFailed = compatibility?.compatible === false;
+  const compatibilityAvailable = compatibility?.compatible === true;
 
   const prerequisites = [
     {
@@ -86,12 +90,15 @@ export function computeStages({
     },
     {
       key: "compat",
-      ok: compatible,
-      label: "Data compatibility passed",
-      hint: compatibilityLoading
-        ? "Compatibility check is still running."
-        : compatibility?.reasons?.[0] ||
-          "The backend compatibility check did not pass.",
+      ok: !compatibilityFailed,
+      label: compatibilityAvailable ? "Data compatibility passed" : "Compatibility check",
+      hint: compatibilityFailed
+        ? compatibility?.reasons?.[0] || "The backend compatibility check did not pass."
+        : compatibilityAvailable
+          ? "Backend compatibility check passed."
+          : compatibilityLoading
+            ? "Compatibility check is still running; ranking can use the available evidence."
+            : "Compatibility data is not available; ranking can still be attempted with AIS and drift evidence.",
     },
   ];
   const unmet = prerequisites.filter((p) => !p.ok);
