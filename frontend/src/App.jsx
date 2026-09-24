@@ -35,8 +35,8 @@ function Shell() {
 
         <main className={`main-content ${isInvestigation ? "main-investigation" : ""}`}>
           <Routes>
-            {/* The application opens on the Upload SAR step */}
-            <Route path="/" element={<Navigate to="/upload" replace />} />
+            {/* The application opens on the product dashboard; investigations start from there. */}
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/upload" element={<Upload />} />
             <Route path="/dashboard" element={<Home />} />
             <Route path="/investigation/:id" element={<Investigation />} />

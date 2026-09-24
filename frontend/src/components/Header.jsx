@@ -8,7 +8,7 @@ function Header() {
 
   return (
     <header className="app-header">
-      <button className="brand" onClick={() => navigate("/upload")} aria-label="SpillTrace — new investigation">
+      <button className="brand" onClick={() => navigate("/dashboard")} aria-label="SpillTrace — new investigation">
         <span className="brand-mark">ST</span>
         <span className="brand-text">
           <span className="brand-name">SPILLTRACE</span>

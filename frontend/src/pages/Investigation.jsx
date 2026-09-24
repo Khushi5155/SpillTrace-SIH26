@@ -48,7 +48,7 @@ import {
   trackKey,
 } from "../utils/investigation";
 import { computeStages } from "../utils/stages";
-import { buildReportPayload } from "../utils/report";
+import { buildReportPayload, buildLocalInvestigationReportHtml } from "../utils/report";
 
 const SECTION_FOR_STAGE = {
   detection: "detection",
@@ -135,7 +135,7 @@ function InvestigationView({ id }) {
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState(null);
 
-  const [basemap, setBasemap] = useState("dark");
+  const [basemap, setBasemap] = useState("standard");
   const [mapFocus, setMapFocus] = useState(null);
   const [layers, setLayers] = useState({
     sarSource: true,
@@ -482,9 +482,13 @@ function InvestigationView({ id }) {
   };
 
   const isCompatible = compatibility?.compatible === true;
+  const compatibilityFailed = compatibility?.compatible === false;
 
   const handleRankCandidates = async () => {
-    if (!compatibility || !isCompatible) return;
+    if (compatibilityFailed) {
+      setCandidateError(compatibility?.reasons?.[0] || "The backend compatibility check did not pass.");
+      return;
+    }
 
     setCandidateLoading(true);
     setCandidateError(null);
@@ -529,15 +533,17 @@ function InvestigationView({ id }) {
         };
 
         result = await rankCandidates(spillId, {
-          compatibility: {
-            compatible: true,
-            status: "passed",
-            temporal_overlap: compatibility.temporal_overlap ?? true,
-            geographic_overlap: compatibility.geographic_overlap ?? true,
-            crs_valid: compatibility.crs_valid ?? true,
-            environmental_coverage: compatibility.environmental_coverage ?? true,
-            reasons: compatibility.reasons || [],
-          },
+          compatibility: compatibility
+            ? {
+                compatible: compatibility.compatible ?? null,
+                status: compatibility.status || "unknown",
+                temporal_overlap: compatibility.temporal_overlap ?? null,
+                geographic_overlap: compatibility.geographic_overlap ?? null,
+                crs_valid: compatibility.crs_valid ?? null,
+                environmental_coverage: compatibility.environmental_coverage ?? null,
+                reasons: compatibility.reasons || [],
+              }
+            : null,
           driftEvidence,
           candidates: candidateInputs,
           limit: 10,
@@ -646,18 +652,38 @@ function InvestigationView({ id }) {
         detectionError,
       });
 
-      const report = await createInvestigationReport(payload);
-      const html = await createInvestigationReportHtml(payload);
+      let report = null;
+      let html = null;
+
+      // Prefer the backend report generator so the exported document remains
+      // the backend's source of truth. If the HTML renderer is unavailable,
+      // fall back to a complete client-generated report rather than leaving
+      // the button apparently dead.
+      try {
+        report = await createInvestigationReport(payload);
+      } catch (reportErr) {
+        console.warn("Investigation report record could not be created:", reportErr);
+      }
+
+      try {
+        html = await createInvestigationReportHtml(payload);
+      } catch (htmlErr) {
+        console.warn("Backend HTML report unavailable; using local report renderer:", htmlErr);
+      }
+
+      if (!html || typeof html !== "string") {
+        html = buildLocalInvestigationReportHtml(payload);
+      }
 
       const blob = new Blob([html], { type: "text/html;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${report?.report_id || "spilltrace-investigation"}.html`;
+      link.download = `${report?.report_id || `spilltrace-investigation-${spillId}`}.html`;
       document.body.appendChild(link);
       link.click();
       link.remove();
-      URL.revokeObjectURL(url);
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (err) {
       setReportError(getApiError(err).message);
     } finally {
@@ -807,6 +833,10 @@ function InvestigationView({ id }) {
 
       <div className="inv-workspace">
         <div className="inv-map">
+          <div className="map-context">
+            <div><span className="map-context-kicker">INVESTIGATION MAP</span><strong>Live geospatial evidence</strong></div>
+            <span className="map-context-status"><i /> {hasSlick ? "Slick layer active" : "Awaiting detection"}</span>
+          </div>
           <InvestigationMap
             sceneBounds={bounds}
             slickGeojson={slickGeojson}
